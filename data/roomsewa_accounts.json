@@ -1,0 +1,19 @@
+[
+  {
+    "uid": "usr_1790937358658_25c32107",
+    "email": "testuser99@gmail.com",
+    "displayName": "Ramesh Sharma",
+    "phoneNumber": "9841234567",
+    "role": "seeker",
+    "isPremium": false,
+    "salt": "7252c897ef4f5abc94325bfe56e60efe",
+    "passwordHash": "71a6509fe2776060ab7f7a24ab29a5417f2c73fba45bb2bffa96f287b2bd8de3",
+    "isVerified": true,
+    "verificationToken": null,
+    "verificationExpires": null,
+    "createdAt": "2026-10-02T10:35:58.658Z",
+    "updatedAt": "2026-10-02T10:36:24.898Z",
+    "resetToken": null,
+    "resetExpires": null
+  }
+]

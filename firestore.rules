@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() &&
+        'email' in request.auth.token &&
+        (
+          request.auth.token.email.matches('(?i)^rajritesh1618@gmail\\.com$') ||
+          request.auth.token.email.matches('(?i)^admin@.*') ||
+          request.auth.token.email == 'rajritesh1618@gmail.com' ||
+          request.auth.token.email == 'Rajritesh1618@gmail.com' ||
+          request.auth.token.email == 'admin@roomsewa.com' ||
+          request.auth.token.email == 'Admin@roomsewa.com' ||
+          request.auth.token.email == 'admin@janakpurrooms.com' ||
+          request.auth.token.email == 'Admin@janakpurrooms.com' ||
+          request.auth.token.email.matches('^[rR][aA][jJ][rR][iI][tT][eE][sS][hH]1618@gmail\\.com$') ||
+          request.auth.token.email.matches('^[aA][dD][mM][iI][nN]@(roomsewa\\.com|janakpurrooms\\.com)$')
+        );
+    }
+
+    function isAdmin() {
+      return isSuperAdmin() || (
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'admin'
+      );
+    }
+
+    // Test connection check
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Rooms Collection
+    match /rooms/{roomId} {
+      allow read, write: if true;
+    }
+
+    // Chowks Collection (Public Read, Admin/System Write)
+    match /chowks/{chowkId} {
+      allow read, write: if true;
+    }
+
+    // Inquiries Collection
+    match /inquiries/{inquiryId} {
+      allow read, write: if true;
+    }
+
+    // Premium Requests
+    match /premiumRequests/{reqId} {
+      allow read, write: if true;
+    }
+
+    // Saved Rooms / Wishlist
+    match /savedRooms/{saveId} {
+      allow read, write: if true;
+    }
+
+    // Direct, Room, and Support Conversations
+    match /conversations/{conversationId} {
+      allow read, write: if true;
+
+      // Messages Subcollection
+      match /messages/{messageId} {
+        allow read, write: if true;
+      }
+    }
+
+    // Notifications (Admin & User)
+    match /adminNotifications/{notifId} {
+      allow read, write: if true;
+    }
+
+    match /userNotifications/{notifId} {
+      allow read, write: if true;
+    }
+
+    // App and Support Settings
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+
+    // Room Facilities and Amenities
+    match /features/{featureId} {
+      allow read, write: if true;
+    }
+
+    // Public Announcements and Notices
+    match /notices/{noticeId} {
+      allow read, write: if true;
+    }
+  }
+}
+
