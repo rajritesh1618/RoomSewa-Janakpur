@@ -22,6 +22,7 @@ export interface SignupResult {
   message: string;
   email: string;
   verificationLink?: string;
+  remainingSeconds?: number;
 }
 
 export interface LoginResult {
@@ -179,7 +180,11 @@ export async function resendVerificationLink(email: string): Promise<SignupResul
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || 'Could not resend verification email');
+    const error: any = new Error(data.error || 'Could not resend verification email');
+    if (data.remainingSeconds !== undefined) {
+      error.remainingSeconds = data.remainingSeconds;
+    }
+    throw error;
   }
 
   return data;

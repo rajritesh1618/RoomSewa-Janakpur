@@ -5,6 +5,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
+import { sendVerificationEmail, sendPasswordResetEmail } from './emailService';
 
 dotenv.config();
 
@@ -322,6 +323,7 @@ interface StoredAccount {
   isVerified: boolean;
   verificationToken?: string | null;
   verificationExpires?: string | null;
+  lastVerificationSentAt?: string | null;
   resetToken?: string | null;
   resetExpires?: string | null;
   createdAt: string;
@@ -347,6 +349,16 @@ function isValidGmailServer(email: string): boolean {
 }
 
 const GMAIL_VALIDATION_ERROR = 'Please enter a valid Gmail address (example@gmail.com).';
+
+function getAppBaseUrl(req: Request): string {
+  if (process.env.APP_URL && process.env.APP_URL !== 'MY_APP_URL') {
+    return process.env.APP_URL.replace(/\/+$/, '');
+  }
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const proto = typeof forwardedProto === 'string' ? forwardedProto.split(',')[0].trim() : req.protocol;
+  const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
+  return `${proto}://${host}`;
+}
 
 function loadAccounts(): StoredAccount[] {
   try {
@@ -378,8 +390,8 @@ function generateSecureToken(prefix: string): string {
 
 // POST /api/auth/signup
 // Handles First-Time RoomSewa user registration
-// Account is created as UNVERIFIED, user is NOT logged in, and verification link is sent to their Gmail
-app.post('/api/auth/signup', (req: Request, res: Response) => {
+// Account is created as UNVERIFIED, user is NOT logged in, and real verification email is delivered to their Gmail
+app.post('/api/auth/signup', async (req: Request, res: Response) => {
   try {
     const { email, password, name, role, phone } = req.body || {};
 
@@ -414,6 +426,20 @@ app.post('/api/auth/signup', (req: Request, res: Response) => {
       return;
     }
 
+    // Rate-limit rapid duplicate signups (60-second cooldown)
+    const now = Date.now();
+    if (existingIndex >= 0 && accounts[existingIndex].lastVerificationSentAt) {
+      const elapsedMs = now - new Date(accounts[existingIndex].lastVerificationSentAt!).getTime();
+      if (elapsedMs < 60000) {
+        const remainingSeconds = Math.ceil((60000 - elapsedMs) / 1000);
+        res.status(429).json({
+          error: `Verification email was already sent recently. Resend available in ${remainingSeconds}s. Please check your Inbox and don't forget to check your Spam/Junk folder.`,
+          remainingSeconds
+        });
+        return;
+      }
+    }
+
     const salt = crypto.randomBytes(16).toString('hex');
     const passwordHash = hashPasswordWithSalt(password, salt);
     const verificationToken = generateSecureToken('verify');
@@ -424,7 +450,7 @@ app.post('/api/auth/signup', (req: Request, res: Response) => {
     let accountRecord: StoredAccount;
 
     if (existingIndex >= 0) {
-      // Update unverified account with new credentials and new token
+      // Update unverified account with new credentials and fresh token
       accountRecord = {
         ...accounts[existingIndex],
         displayName: name.trim(),
@@ -459,21 +485,34 @@ app.post('/api/auth/signup', (req: Request, res: Response) => {
       accounts.push(accountRecord);
     }
 
-    saveAccounts(accounts);
+    // Build standard RoomSewa verification link using resolved base URL
+    const baseUrl = getAppBaseUrl(req);
+    const verificationLink = `${baseUrl}/?action=verify-email&token=${verificationToken}&email=${encodeURIComponent(cleanEmail)}`;
 
-    // Build standard RoomSewa verification link
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-    const host = req.get('host') || 'localhost:3000';
-    const verificationLink = `${protocol}://${host}/?action=verify-email&token=${verificationToken}&email=${encodeURIComponent(cleanEmail)}`;
+    console.log(`[RoomSewa Auth] Delivering verification email to ${cleanEmail}...`);
 
-    console.log(`[RoomSewa Auth] Email Verification Link generated for ${cleanEmail}: ${verificationLink}`);
+    try {
+      await sendVerificationEmail({
+        to: cleanEmail,
+        name: name.trim(),
+        verificationLink
+      });
+      accountRecord.lastVerificationSentAt = new Date().toISOString();
+      saveAccounts(accounts);
+    } catch (emailErr: any) {
+      console.error(`[RoomSewa Auth] Error delivering email to ${cleanEmail}:`, emailErr);
+      res.status(500).json({
+        error: `Could not send verification email to ${cleanEmail}: ${emailErr?.message || 'Email delivery failed'}. Please check your Gmail address and try again.`
+      });
+      return;
+    }
 
-    // Return success without logging the user in
+    // Return success without logging the user in, with the exact required notice
     res.json({
       success: true,
-      message: `Verification link sent from RoomSewa to your Gmail (${cleanEmail})! Please check your inbox and click the verification link to activate your account.`,
+      message: "Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.",
       email: cleanEmail,
-      verificationLink
+      remainingSeconds: 60
     });
   } catch (err: any) {
     console.error('Error during signup:', err);
@@ -616,7 +655,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
 
 // POST /api/auth/forgot-password
 // Sends password reset link to user's registered Gmail
-app.post('/api/auth/forgot-password', (req: Request, res: Response) => {
+app.post('/api/auth/forgot-password', async (req: Request, res: Response) => {
   try {
     const { email } = req.body || {};
 
@@ -646,17 +685,28 @@ app.post('/api/auth/forgot-password', (req: Request, res: Response) => {
 
     saveAccounts(accounts);
 
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-    const host = req.get('host') || 'localhost:3000';
-    const resetLink = `${protocol}://${host}/?action=reset-password&token=${resetToken}&email=${encodeURIComponent(cleanEmail)}`;
+    const baseUrl = getAppBaseUrl(req);
+    const resetLink = `${baseUrl}/?action=reset-password&token=${resetToken}&email=${encodeURIComponent(cleanEmail)}`;
 
-    console.log(`[RoomSewa Auth] Password Reset Link generated for ${cleanEmail}: ${resetLink}`);
+    console.log(`[RoomSewa Auth] Delivering password reset email to ${cleanEmail}...`);
+
+    try {
+      await sendPasswordResetEmail({
+        to: cleanEmail,
+        resetLink
+      });
+    } catch (emailErr: any) {
+      console.error(`[RoomSewa Auth] Failed to deliver password reset email to ${cleanEmail}:`, emailErr);
+      res.status(500).json({
+        error: `Could not send password reset email: ${emailErr?.message || 'Email delivery error'}.`
+      });
+      return;
+    }
 
     res.json({
       success: true,
-      message: `Password reset link sent to your Gmail (${cleanEmail})! Please check your inbox.`,
-      email: cleanEmail,
-      resetLink
+      message: `Password reset link sent to your Gmail (${cleanEmail})! Please check your Inbox and don't forget to check your Spam/Junk folder.`,
+      email: cleanEmail
     });
   } catch (err: any) {
     console.error('Error during forgot-password:', err);
@@ -732,8 +782,8 @@ app.post('/api/auth/reset-password', (req: Request, res: Response) => {
 });
 
 // POST /api/auth/resend-verification
-// Resends email verification link to Gmail
-app.post('/api/auth/resend-verification', (req: Request, res: Response) => {
+// Resends email verification link to Gmail, strictly enforcing 60-second cooldown
+app.post('/api/auth/resend-verification', async (req: Request, res: Response) => {
   try {
     const { email } = req.body || {};
 
@@ -761,24 +811,51 @@ app.post('/api/auth/resend-verification', (req: Request, res: Response) => {
       return;
     }
 
+    // Enforce 60-second cooldown on resends
+    const now = Date.now();
+    if (account.lastVerificationSentAt) {
+      const elapsedMs = now - new Date(account.lastVerificationSentAt).getTime();
+      if (elapsedMs < 60000) {
+        const remainingSeconds = Math.ceil((60000 - elapsedMs) / 1000);
+        res.status(429).json({
+          error: `Resend available in ${remainingSeconds}s. Please check your Inbox and don't forget to check your Spam/Junk folder.`,
+          remainingSeconds
+        });
+        return;
+      }
+    }
+
     const verificationToken = generateSecureToken('verify');
     account.verificationToken = verificationToken;
     account.verificationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-    account.updatedAt = new Date().toISOString();
 
-    saveAccounts(accounts);
+    const baseUrl = getAppBaseUrl(req);
+    const verificationLink = `${baseUrl}/?action=verify-email&token=${verificationToken}&email=${encodeURIComponent(cleanEmail)}`;
 
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-    const host = req.get('host') || 'localhost:3000';
-    const verificationLink = `${protocol}://${host}/?action=verify-email&token=${verificationToken}&email=${encodeURIComponent(cleanEmail)}`;
+    console.log(`[RoomSewa Auth] Delivering fresh verification email to ${cleanEmail}...`);
 
-    console.log(`[RoomSewa Auth] Resent Verification Link for ${cleanEmail}: ${verificationLink}`);
+    try {
+      await sendVerificationEmail({
+        to: cleanEmail,
+        name: account.displayName,
+        verificationLink
+      });
+      account.lastVerificationSentAt = new Date().toISOString();
+      account.updatedAt = new Date().toISOString();
+      saveAccounts(accounts);
+    } catch (emailErr: any) {
+      console.error(`[RoomSewa Auth] Failed to resend verification email to ${cleanEmail}:`, emailErr);
+      res.status(500).json({
+        error: `Could not send verification email to ${cleanEmail}: ${emailErr?.message || 'SMTP error'}. Please check your Gmail address and try again.`
+      });
+      return;
+    }
 
     res.json({
       success: true,
-      message: `A fresh verification link has been sent to your Gmail (${cleanEmail})!`,
+      message: "Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.",
       email: cleanEmail,
-      verificationLink
+      remainingSeconds: 60
     });
   } catch (err: any) {
     console.error('Error resending verification email:', err);

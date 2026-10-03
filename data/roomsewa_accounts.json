@@ -15,5 +15,36 @@
     "updatedAt": "2026-10-02T10:36:24.898Z",
     "resetToken": null,
     "resetExpires": null
+  },
+  {
+    "uid": "usr_1791017240367_5afda4cd",
+    "email": "testnewuser789@gmail.com",
+    "displayName": "Sunil Yadav",
+    "phoneNumber": "9841234567",
+    "role": "seeker",
+    "isPremium": false,
+    "salt": "521cb59e78bd7ff4089348395db48437",
+    "passwordHash": "9dfd14e05147b6c836eb80a079bd02615ba229e3174cc654275c1fdb946a4929",
+    "isVerified": false,
+    "verificationToken": "verify_1791017240367_3f85be860bff92debbb4c0e807d83f9b07924954",
+    "verificationExpires": "2026-10-05T08:47:20.367Z",
+    "createdAt": "2026-10-03T08:47:20.367Z",
+    "updatedAt": "2026-10-03T08:47:20.367Z"
+  },
+  {
+    "uid": "usr_1791017359942_cfae8958",
+    "email": "haribahadur2026@gmail.com",
+    "displayName": "Hari Bahadur",
+    "phoneNumber": "9841234567",
+    "role": "seeker",
+    "isPremium": false,
+    "salt": "26abfdd957f69df16c55f6827ece3deb",
+    "passwordHash": "a60bb3ebf108726a1f2c7161514ced95e666659ff30235318cfc58bbb131ccc4",
+    "isVerified": true,
+    "verificationToken": null,
+    "verificationExpires": null,
+    "createdAt": "2026-10-03T08:49:19.942Z",
+    "updatedAt": "2026-10-03T08:49:39.177Z",
+    "lastVerificationSentAt": "2026-10-03T08:49:19.944Z"
   }
 ]

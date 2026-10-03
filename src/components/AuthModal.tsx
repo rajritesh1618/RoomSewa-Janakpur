@@ -80,11 +80,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
 
-  // Link simulation previews for easy testing and instant UX
-  const [generatedVerificationLink, setGeneratedVerificationLink] = useState('');
-  const [generatedResetLink, setGeneratedResetLink] = useState('');
-  const [copiedLink, setCopiedLink] = useState(false);
+  // 60-second cooldown timer for resending verification email
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [resending, setResending] = useState(false);
+  const [generatedResetLink, setGeneratedResetLink] = useState('');
+  const [copiedResetLink, setCopiedResetLink] = useState(false);
+
+  const handleCopyResetLink = (text: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedResetLink(true);
+    setTimeout(() => setCopiedResetLink(false), 2500);
+  };
+
+  // Countdown ticker: Decrements every 1 second until 0
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // Sync mode and prefilled data whenever defaultMode, initialEmail, or isOpen changes
   useEffect(() => {
@@ -140,46 +162,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     newPassword === confirmPassword
   );
 
-  const handleCopyLink = (text: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
-  };
-
   const handleResendVerification = async (targetEmail: string) => {
-    if (!targetEmail) return;
+    if (!targetEmail || resendCooldown > 0 || resending) return;
+    // Immediately start 60-second countdown and disable button to prevent rapid/duplicate requests
+    setResendCooldown(60);
     setResending(true);
     setErrorMsg('');
     try {
       const res = await resendVerificationLink(targetEmail);
-      if (res.verificationLink) {
-        setGeneratedVerificationLink(res.verificationLink);
-      }
-      setSuccessMsg(`A fresh verification link has been sent to your Gmail (${targetEmail})!`);
+      setResendCooldown(res.remainingSeconds || 60);
+      setSuccessMsg("Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.");
     } catch (err: any) {
+      if (err?.remainingSeconds !== undefined) {
+        setResendCooldown(err.remainingSeconds);
+      }
       setErrorMsg(err.message || 'Could not resend verification email.');
     } finally {
       setResending(false);
-    }
-  };
-
-  const handleInstantVerifySimulation = async () => {
-    if (!generatedVerificationLink) return;
-    try {
-      const url = new URL(generatedVerificationLink);
-      const token = url.searchParams.get('token');
-      const verifyEmail = url.searchParams.get('email');
-      if (token && verifyEmail) {
-        setSubmitting(true);
-        const res = await verifyEmailRoomSewa(token, verifyEmail);
-        setSuccessMsg(res.message || 'Account verified successfully!');
-        setMode('login');
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Could not verify account.');
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -207,7 +206,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       } else if (mode === 'signup') {
         // First-Time Signup:
-        // Must send verification link to Gmail, account remains unverified, user is NOT logged in
+        // Delivers real verification email to Gmail, account remains unverified, user is NOT logged in
         if (!name.trim()) {
           setErrorMsg('Please enter your full name');
           setSubmitting(false);
@@ -233,12 +232,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           fullNepalPhone
         );
 
-        if (signupRes.verificationLink) {
-          setGeneratedVerificationLink(signupRes.verificationLink);
-        }
         setUnverifiedEmail(email.trim());
+        setResendCooldown(signupRes.remainingSeconds || 60);
         setMode('verification-sent');
-        setSuccessMsg(signupRes.message);
+        setSuccessMsg("Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.");
       } else if (mode === 'forgot-password') {
         // Forgot Password:
         // Send password reset link to user's registered Gmail
@@ -404,16 +401,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               {/* If account unverified banner with Resend button */}
               {unverifiedEmail && (
-                <div className="pt-2 border-t border-rose-200/80 flex items-center justify-between">
-                  <span className="text-[11px] text-rose-700">Didn't receive the email?</span>
+                <div className="pt-2.5 border-t border-rose-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <span className="text-[11px] text-rose-700">Didn't receive the email? Check Spam folder or:</span>
                   <button
                     type="button"
-                    disabled={resending}
+                    disabled={resending || resendCooldown > 0}
                     onClick={() => handleResendVerification(unverifiedEmail)}
-                    className="text-[11px] font-bold text-rose-800 underline hover:text-rose-950 flex items-center gap-1 cursor-pointer"
+                    className={`text-[11px] font-bold flex items-center gap-1.5 transition-colors ${
+                      resendCooldown > 0
+                        ? 'text-rose-400 cursor-not-allowed'
+                        : 'text-rose-800 hover:text-rose-950 underline cursor-pointer'
+                    }`}
                   >
                     <RefreshCw className={`w-3 h-3 ${resending ? 'animate-spin' : ''}`} />
-                    <span>{resending ? 'Sending...' : 'Resend Verification Link'}</span>
+                    <span>
+                      {resending
+                        ? 'Sending...'
+                        : resendCooldown > 0
+                        ? `Resend available in ${resendCooldown}s`
+                        : 'Resend Verification Email'}
+                    </span>
                   </button>
                 </div>
               )}
@@ -423,63 +430,83 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* MODE: VERIFICATION SENT (After Signup) */}
           {mode === 'verification-sent' && (
             <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-xs space-y-2">
-                <div className="flex items-center gap-2 text-amber-800 font-bold">
-                  <Mail className="w-4 h-4 text-amber-600" />
-                  <span>Verification Link Sent to Gmail</span>
+              {/* Primary Notification Banner */}
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-2 animate-in fade-in">
+                <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
+                  <Mail className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Check Your Gmail Inbox</span>
                 </div>
-                <p className="text-[11px] text-amber-900 leading-relaxed">
+                <p className="text-xs font-bold text-amber-950 leading-relaxed bg-amber-100/70 p-2.5 rounded-xl border border-amber-200">
+                  Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.
+                </p>
+                <p className="text-[11px] text-amber-900 leading-relaxed pt-1">
                   We have sent an official verification link from <strong>RoomSewa Janakpur</strong> to{' '}
-                  <strong className="underline">{email}</strong>.
+                  <strong className="underline text-slate-900">{email}</strong>.
                 </p>
                 <div className="p-2.5 bg-white rounded-xl border border-amber-200/80 text-[11px] text-slate-700 font-medium">
-                  ⚠️ <strong>Important:</strong> Your account will remain unverified and you will <strong>not be logged in</strong> until you click the verification link.
+                  ⚠️ <strong>Account Status:</strong> Your account will remain unverified and you will <strong>not be logged in</strong> until you click the verification link received in your email.
                 </div>
               </div>
 
-              {/* Email simulation / Preview card for immediate local test & verification */}
-              {generatedVerificationLink && (
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                      <Send className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>RoomSewa Email Verification Preview</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyLink(generatedVerificationLink)}
-                      className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
-                    >
-                      {copiedLink ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
-                    </button>
-                  </div>
+              {/* Visual Preview Only: Non-interactive representation of the incoming email */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2.5">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>RoomSewa Email Verification Preview / Copy Link</span>
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-amber-100 text-amber-800 rounded border border-amber-200">
+                    Visual Preview Only
+                  </span>
+                </div>
 
-                  <p className="text-[11px] text-slate-600">
-                    Click the verification button below to activate your account:
+                <div className="bg-white rounded-xl p-3 border border-slate-200 space-y-2 text-[11px]">
+                  <div className="text-slate-600">
+                    <span className="text-slate-400">From: </span>
+                    <strong className="text-slate-800">RoomSewa Janakpur &lt;no-reply@roomsewa.com&gt;</strong>
+                  </div>
+                  <div className="text-slate-600">
+                    <span className="text-slate-400">Subject: </span>
+                    <strong className="text-slate-800">Verify your RoomSewa Janakpur Account</strong>
+                  </div>
+                  <p className="text-slate-500 pt-1 text-[11px]">
+                    Open the email in your real Gmail inbox and click the <strong>Verify RoomSewa Account</strong> button inside to activate your account.
                   </p>
 
-                  <button
-                    type="button"
-                    onClick={handleInstantVerifySimulation}
-                    disabled={submitting}
-                    className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>{submitting ? 'Verifying...' : 'Verify RoomSewa Account Now'}</span>
-                  </button>
+                  <div className="pt-1.5">
+                    <div className="w-full py-2.5 px-3 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center gap-2 cursor-not-allowed select-none opacity-80 border border-slate-200">
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Verify RoomSewa Account (Visual Preview Only — Click link in your Gmail)</span>
+                    </div>
+                  </div>
                 </div>
-              )}
 
-              <div className="flex flex-col gap-2 pt-2">
+                <p className="text-[10px] text-slate-500 text-center leading-relaxed">
+                  * <strong>Important:</strong> The preview above is only a visual preview. It does <strong>NOT</strong> verify your account. To verify, open your Gmail app or mail.google.com and click the link inside the delivered email.
+                </p>
+              </div>
+
+              {/* Action Buttons: 60s Resend Cooldown & Return to Sign In */}
+              <div className="flex flex-col gap-2 pt-1">
                 <button
                   type="button"
-                  disabled={resending}
+                  id="resend-verification-btn"
+                  disabled={resending || resendCooldown > 0}
                   onClick={() => handleResendVerification(email)}
-                  className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  className={`w-full py-3 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
+                    resendCooldown > 0
+                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
+                      : 'border border-slate-300 hover:bg-slate-100 text-slate-800 hover:text-slate-900 cursor-pointer shadow-xs'
+                  }`}
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${resending ? 'animate-spin' : ''}`} />
-                  <span>{resending ? 'Resending Link...' : 'Resend Verification Link'}</span>
+                  <span>
+                    {resending
+                      ? 'Sending Verification Email...'
+                      : resendCooldown > 0
+                      ? `Resend available in ${resendCooldown}s`
+                      : 'Resend Verification Email'}
+                  </span>
                 </button>
 
                 <button
@@ -487,6 +514,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onClick={() => {
                     setMode('login');
                     setErrorMsg('');
+                    setSuccessMsg('');
                   }}
                   className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
@@ -519,11 +547,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <span className="text-[11px] font-bold text-slate-700">RoomSewa Reset Link Preview</span>
                     <button
                       type="button"
-                      onClick={() => handleCopyLink(generatedResetLink)}
+                      onClick={() => handleCopyResetLink(generatedResetLink)}
                       className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
                     >
-                      {copiedLink ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+                      {copiedResetLink ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedResetLink ? 'Copied!' : 'Copy Link'}</span>
                     </button>
                   </div>
 
