@@ -25,12 +25,7 @@ import {
 } from '../utils/nepalPhone';
 import { isValidGmail, GMAIL_ERROR_MESSAGE } from '../utils/emailValidator';
 import { NepalPhoneInput } from './common/NepalPhoneInput';
-import {
-  forgotPasswordRoomSewa,
-  resetPasswordRoomSewa,
-  resendVerificationLink,
-  verifyEmailRoomSewa
-} from '../services/authService';
+import { resetPasswordWithFirebaseAuth } from '../services/firebaseAuthService';
 
 export type AuthMode =
   | 'login'
@@ -59,7 +54,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   verificationSuccessMessage = null,
   onAdminLoginSuccess
 }) => {
-  const { loginWithEmail, signupWithEmail, signInWithGoogle } = useAuth();
+  const {
+    loginWithEmail,
+    signupWithEmail,
+    signInWithGoogle,
+    resendVerificationEmail,
+    forgotPassword
+  } = useAuth();
   const [mode, setMode] = useState<AuthMode>(defaultMode);
   const [role, setRole] = useState<UserRole>('seeker');
   const [name, setName] = useState('');
@@ -169,8 +170,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setResending(true);
     setErrorMsg('');
     try {
-      const res = await resendVerificationLink(targetEmail);
-      setResendCooldown(res.remainingSeconds || 60);
+      const res = await resendVerificationEmail(targetEmail, password);
+      setResendCooldown(res.remainingSeconds !== undefined ? res.remainingSeconds : 60);
       setSuccessMsg("Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.");
     } catch (err: any) {
       if (err?.remainingSeconds !== undefined) {
@@ -206,7 +207,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       } else if (mode === 'signup') {
         // First-Time Signup:
-        // Delivers real verification email to Gmail, account remains unverified, user is NOT logged in
+        // Delivers real verification email via Firebase Auth, account remains unverified, user is NOT logged in
         if (!name.trim()) {
           setErrorMsg('Please enter your full name');
           setSubmitting(false);
@@ -238,11 +239,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setSuccessMsg("Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.");
       } else if (mode === 'forgot-password') {
         // Forgot Password:
-        // Send password reset link to user's registered Gmail
-        const res = await forgotPasswordRoomSewa(email.trim());
-        if (res.resetLink) {
-          setGeneratedResetLink(res.resetLink);
-        }
+        // Send password reset link to user's registered Gmail via Firebase Auth
+        const res = await forgotPassword(email.trim());
         setMode('forgot-sent');
         setSuccessMsg(res.message);
       } else if (mode === 'reset-password') {
@@ -259,15 +257,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           return;
         }
 
-        const res = await resetPasswordRoomSewa({
-          email: email.trim(),
-          token: resetToken,
-          newPassword,
-          confirmPassword
-        });
-
+        const res = await resetPasswordWithFirebaseAuth(resetToken, newPassword);
         setSuccessMsg(res.message);
         setPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
         setMode('login');
       }
     } catch (err: any) {
@@ -431,16 +425,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {mode === 'verification-sent' && (
             <div className="space-y-4">
               {/* Primary Notification Banner */}
-              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-2 animate-in fade-in">
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-2.5 animate-in fade-in">
                 <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
                   <Mail className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Check Your Gmail Inbox</span>
+                  <span>Verification Email Sent</span>
                 </div>
-                <p className="text-xs font-bold text-amber-950 leading-relaxed bg-amber-100/70 p-2.5 rounded-xl border border-amber-200">
+                <p className="text-xs font-bold text-amber-950 leading-relaxed bg-amber-100/70 p-3 rounded-xl border border-amber-200">
                   Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.
                 </p>
-                <p className="text-[11px] text-amber-900 leading-relaxed pt-1">
-                  We have sent an official verification link from <strong>RoomSewa Janakpur</strong> to{' '}
+                <p className="text-[11px] text-amber-900 leading-relaxed">
+                  An official email verification message has been dispatched to{' '}
                   <strong className="underline text-slate-900">{email}</strong>.
                 </p>
                 <div className="p-2.5 bg-white rounded-xl border border-amber-200/80 text-[11px] text-slate-700 font-medium">
@@ -448,42 +442,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
-              {/* Visual Preview Only: Non-interactive representation of the incoming email */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2.5">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                  <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>RoomSewa Email Verification Preview / Copy Link</span>
-                  </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-amber-100 text-amber-800 rounded border border-amber-200">
-                    Visual Preview Only
-                  </span>
+              {/* Instructions Box */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>How to Complete Account Activation</span>
                 </div>
-
-                <div className="bg-white rounded-xl p-3 border border-slate-200 space-y-2 text-[11px]">
-                  <div className="text-slate-600">
-                    <span className="text-slate-400">From: </span>
-                    <strong className="text-slate-800">RoomSewa Janakpur &lt;no-reply@roomsewa.com&gt;</strong>
-                  </div>
-                  <div className="text-slate-600">
-                    <span className="text-slate-400">Subject: </span>
-                    <strong className="text-slate-800">Verify your RoomSewa Janakpur Account</strong>
-                  </div>
-                  <p className="text-slate-500 pt-1 text-[11px]">
-                    Open the email in your real Gmail inbox and click the <strong>Verify RoomSewa Account</strong> button inside to activate your account.
-                  </p>
-
-                  <div className="pt-1.5">
-                    <div className="w-full py-2.5 px-3 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center gap-2 cursor-not-allowed select-none opacity-80 border border-slate-200">
-                      <Lock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Verify RoomSewa Account (Visual Preview Only — Click link in your Gmail)</span>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-[10px] text-slate-500 text-center leading-relaxed">
-                  * <strong>Important:</strong> The preview above is only a visual preview. It does <strong>NOT</strong> verify your account. To verify, open your Gmail app or mail.google.com and click the link inside the delivered email.
-                </p>
+                <ol className="list-decimal list-inside space-y-2 text-[11px] text-slate-600 leading-relaxed">
+                  <li>
+                    Open your <strong>Gmail inbox</strong> on this device or your mobile app.
+                  </li>
+                  <li>
+                    Look for an email from <strong>RoomSewa Janakpur</strong> with subject <em>"Verify your email"</em>.
+                  </li>
+                  <li>
+                    If you don't see it immediately, please check your <strong>Spam or Junk folder</strong>.
+                  </li>
+                  <li>
+                    Click the verification link/button inside the email to activate your account.
+                  </li>
+                  <li>
+                    Return to this page and sign in with your Gmail address and password.
+                  </li>
+                </ol>
               </div>
 
               {/* Action Buttons: 60s Resend Cooldown & Return to Sign In */}
@@ -531,55 +512,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-950 text-xs space-y-2">
                 <div className="flex items-center gap-2 text-indigo-800 font-bold">
                   <KeyRound className="w-4 h-4 text-indigo-600" />
-                  <span>Password Reset Link Dispatched</span>
+                  <span>Password Reset Email Sent</span>
                 </div>
                 <p className="text-[11px] text-indigo-900 leading-relaxed">
                   We sent a secure password-reset link to <strong className="underline">{email}</strong>.
                 </p>
                 <p className="text-[11px] text-slate-600">
-                  Click the link in your email to open the <strong>New Password + Confirm Password</strong> page and safely reset your password.
+                  Open the email in your Gmail app and click the link to set your new password. (Be sure to check your Spam folder if needed).
                 </p>
               </div>
-
-              {generatedResetLink && (
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700">RoomSewa Reset Link Preview</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyResetLink(generatedResetLink)}
-                      className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
-                    >
-                      {copiedResetLink ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedResetLink ? 'Copied!' : 'Copy Link'}</span>
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const url = new URL(generatedResetLink);
-                      const tok = url.searchParams.get('token') || '';
-                      setResetToken(tok);
-                      setMode('reset-password');
-                    }}
-                    className="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <KeyRound className="w-4 h-4" />
-                    <span>Open New Password Page</span>
-                  </button>
-                </div>
-              )}
 
               <button
                 type="button"
                 onClick={() => {
                   setMode('login');
                   setErrorMsg('');
+                  setSuccessMsg('');
                 }}
-                className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Back to Sign In</span>
+                <span>Return to Sign In</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           )}

@@ -20,6 +20,8 @@ import { ProfilePictureModals } from './components/profile/ProfilePictureModals'
 import { MandatoryPhoneModal } from './components/profile/MandatoryPhoneModal';
 import { RoomListing } from './types';
 import { APIProvider } from '@vis.gl/react-google-maps';
+import { applyActionCode, verifyPasswordResetCode } from 'firebase/auth';
+import { auth } from './lib/firebase';
 import { verifyEmailRoomSewa } from './services/authService';
 
 export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyD5D09SQ5IUwybuEVxcM64JvHQqTiBJzBs';
@@ -46,19 +48,71 @@ function MainAppContent() {
     return () => window.removeEventListener('gmp-quota-exceeded', handler);
   }, []);
 
-  // Handle URL actions: email verification and password reset links
+  // Handle URL actions: Firebase Auth email verification & password reset action codes
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
+    const mode = searchParams.get('mode');
+    const oobCode = searchParams.get('oobCode');
     const action = searchParams.get('action');
     const token = searchParams.get('token');
-    const email = searchParams.get('email');
+    const emailParam = searchParams.get('email');
+    const emailVerified = searchParams.get('emailVerified');
 
-    if (action === 'verify-email' && token && email) {
-      // Clear URL params without page reload
+    // 1. Firebase Auth Action Code: verifyEmail
+    if ((mode === 'verifyEmail' || action === 'verify-email') && oobCode) {
       window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-      verifyEmailRoomSewa(token, email)
-        .then((res) => {
+      applyActionCode(auth, oobCode)
+        .then(async () => {
+          if (auth.currentUser) {
+            await auth.currentUser.reload();
+          }
+          if (emailParam) setAuthEmail(emailParam);
+          setAuthModalMode('login');
+          setAuthSuccessMessage('🎉 Your email has been successfully verified! You can now log in using your Gmail and password.');
+          setAuthModalOpen(true);
+        })
+        .catch((err: any) => {
+          console.error('Error applying action code:', err);
+          setAuthModalMode('login');
+          if (err?.code === 'auth/invalid-action-code') {
+            setAuthSuccessMessage('Notice: This verification link has expired or has already been used. If your account is verified, you can sign in directly.');
+          } else {
+            setAuthSuccessMessage('Notice: ' + (err?.message || 'Verification link could not be verified. Please request a new verification email.'));
+          }
+          setAuthModalOpen(true);
+        });
+    }
+    // 2. Firebase Auth Action Code: resetPassword
+    else if ((mode === 'resetPassword' || action === 'reset-password') && oobCode) {
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+      verifyPasswordResetCode(auth, oobCode)
+        .then((email) => {
           setAuthEmail(email);
+          setAuthResetToken(oobCode);
+          setAuthModalMode('reset-password');
+          setAuthSuccessMessage('Please set a new password for your account.');
+          setAuthModalOpen(true);
+        })
+        .catch((err: any) => {
+          console.error('Error verifying reset code:', err);
+          setAuthModalMode('forgot-password');
+          setAuthSuccessMessage('Notice: This password reset link has expired or is invalid. Please request a new link.');
+          setAuthModalOpen(true);
+        });
+    }
+    // 3. Simple emailVerified redirect confirmation
+    else if (emailVerified === 'true') {
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+      setAuthModalMode('login');
+      setAuthSuccessMessage('🎉 Your email has been verified! You can now log in using your Gmail and password.');
+      setAuthModalOpen(true);
+    }
+    // 4. Legacy custom verification link compatibility
+    else if (action === 'verify-email' && token && emailParam) {
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+      verifyEmailRoomSewa(token, emailParam)
+        .then((res) => {
+          setAuthEmail(emailParam);
           setAuthModalMode('login');
           setAuthSuccessMessage(
             res.message || '🎉 Your RoomSewa account has been verified! You can now log in using your Gmail and password.'
@@ -66,14 +120,14 @@ function MainAppContent() {
           setAuthModalOpen(true);
         })
         .catch((err) => {
-          setAuthEmail(email);
+          setAuthEmail(emailParam);
           setAuthModalMode('login');
           setAuthSuccessMessage(err.message || 'Verification could not be completed.');
           setAuthModalOpen(true);
         });
-    } else if (action === 'reset-password' && token && email) {
+    } else if (action === 'reset-password' && token && emailParam) {
       window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-      setAuthEmail(email);
+      setAuthEmail(emailParam);
       setAuthResetToken(token);
       setAuthModalMode('reset-password');
       setAuthSuccessMessage('Please set a new password for your account.');

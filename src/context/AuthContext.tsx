@@ -3,7 +3,6 @@ import {
   User,
   signInWithPopup,
   signOut as fbSignOut,
-  updateProfile as fbUpdateProfile,
   onAuthStateChanged
 } from 'firebase/auth';
 import {
@@ -16,9 +15,15 @@ import {
 import { auth, googleProvider, db, isSuperAdminEmail } from '../lib/firebase';
 import { UserProfile, UserRole } from '../types';
 import { sendWelcomeMessageOnce } from '../services/welcomeMessageService';
-import { isValidNepalMobile } from '../utils/nepalPhone';
 import { isValidGmail, GMAIL_ERROR_MESSAGE } from '../utils/emailValidator';
-import { signupRoomSewa, loginRoomSewa, SignupResult } from '../services/authService';
+import {
+  signupWithFirebaseAuth,
+  loginWithFirebaseAuth,
+  resendVerificationWithFirebaseAuth,
+  forgotPasswordWithFirebaseAuth,
+  resetPasswordWithFirebaseAuth,
+  AuthSuccessResult
+} from '../services/firebaseAuthService';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -26,7 +31,9 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: (preferredRole?: UserRole) => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
-  signupWithEmail: (email: string, pass: string, name: string, role: UserRole, phone?: string) => Promise<SignupResult>;
+  signupWithEmail: (email: string, pass: string, name: string, role: UserRole, phone?: string) => Promise<AuthSuccessResult>;
+  resendVerificationEmail: (email: string, pass?: string) => Promise<AuthSuccessResult>;
+  forgotPassword: (email: string) => Promise<AuthSuccessResult>;
   logout: () => Promise<void>;
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
   setUserRole: (role: UserRole) => Promise<void>;
@@ -50,10 +57,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // User logged in via Firebase (e.g. Google Sign-In)
-        setCurrentUser(firebaseUser);
-        localStorage.removeItem('roomsewa_auth_user');
+        // Enforce verification gate: password users MUST have verified email before being logged in
+        const isPasswordProvider = firebaseUser.providerData.some((p) => p.providerId === 'password');
+        if (isPasswordProvider && !firebaseUser.emailVerified) {
+          console.log('[Auth] User email not yet verified. Keeping unauthenticated state.');
+          setCurrentUser(null);
+          setUserProfile(null);
+          setLoading(false);
+          return;
+        }
 
+        setCurrentUser(firebaseUser);
         const userRef = doc(db, 'users', firebaseUser.uid);
 
         unsubscribeProfile = onSnapshot(userRef, async (docSnap) => {
@@ -110,59 +124,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
         });
       } else {
-        // Check for stored RoomSewa session user
-        const storedAuthUser = localStorage.getItem('roomsewa_auth_user');
-        if (storedAuthUser) {
-          try {
-            const parsed = JSON.parse(storedAuthUser);
-            if (parsed && parsed.uid && parsed.email) {
-              setCurrentUser(parsed);
-              const userRef = doc(db, 'users', parsed.uid);
-              unsubscribeProfile = onSnapshot(userRef, (docSnap) => {
-                if (docSnap.exists()) {
-                  const data = docSnap.data() as UserProfile;
-                  const effectiveRole: UserRole = isSuperAdminEmail(parsed.email) ? 'admin' : data.role || 'seeker';
-                  setUserProfile({
-                    ...data,
-                    role: effectiveRole,
-                    isPremium: Boolean(data.isPremium || effectiveRole === 'admin')
-                  });
-                } else {
-                  const isSuper = isSuperAdminEmail(parsed.email);
-                  const newProfile: UserProfile = {
-                    uid: parsed.uid,
-                    email: parsed.email,
-                    displayName: parsed.displayName || 'User',
-                    photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${parsed.uid}`,
-                    phoneNumber: parsed.phoneNumber || '',
-                    role: isSuper ? 'admin' : (parsed.role || 'seeker'),
-                    isPremium: isSuper || Boolean(parsed.isPremium),
-                    createdAt: new Date().toISOString()
-                  };
-                  setUserProfile(newProfile);
-                }
-                setLoading(false);
-              }, () => {
-                const isSuper = isSuperAdminEmail(parsed.email);
-                setUserProfile({
-                  uid: parsed.uid,
-                  email: parsed.email,
-                  displayName: parsed.displayName || 'User',
-                  photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${parsed.uid}`,
-                  phoneNumber: parsed.phoneNumber || '',
-                  role: isSuper ? 'admin' : (parsed.role || 'seeker'),
-                  isPremium: isSuper || Boolean(parsed.isPremium),
-                  createdAt: new Date().toISOString()
-                });
-                setLoading(false);
-              });
-              return;
-            }
-          } catch {
-            localStorage.removeItem('roomsewa_auth_user');
-          }
-        }
-
         if (unsubscribeProfile) unsubscribeProfile();
         setCurrentUser(null);
         setUserProfile(null);
@@ -212,43 +173,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error(GMAIL_ERROR_MESSAGE);
     }
 
-    const res = await loginRoomSewa(trimmedEmail, pass);
-    const loggedInUser = res.user;
+    // Authenticate with Firebase Auth and enforce verified email gate
+    const fbUser = await loginWithFirebaseAuth(trimmedEmail, pass);
+    setCurrentUser(fbUser);
 
-    const userObj = {
-      uid: loggedInUser.uid,
-      email: loggedInUser.email,
-      displayName: loggedInUser.displayName,
-      phoneNumber: loggedInUser.phoneNumber || '',
-      emailVerified: true
-    } as any;
+    // Fetch user profile from Firestore
+    const userRef = doc(db, 'users', fbUser.uid);
+    const docSnap = await getDoc(userRef);
+    const isSuper = isSuperAdminEmail(trimmedEmail);
 
-    setCurrentUser(userObj);
-    localStorage.setItem('roomsewa_auth_user', JSON.stringify({
-      ...userObj,
-      role: loggedInUser.role,
-      isPremium: loggedInUser.isPremium
-    }));
-
-    const isSuper = isSuperAdminEmail(loggedInUser.email);
-    const profile: UserProfile = {
-      uid: loggedInUser.uid,
-      email: loggedInUser.email,
-      displayName: loggedInUser.displayName,
-      phoneNumber: loggedInUser.phoneNumber || '',
-      photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${loggedInUser.uid}`,
-      role: isSuper ? 'admin' : loggedInUser.role,
-      isPremium: isSuper || Boolean(loggedInUser.isPremium),
-      createdAt: new Date().toISOString(),
-      welcomeMessageSent: true,
-      isNewSignup: false
-    };
-
-    const userRef = doc(db, 'users', loggedInUser.uid);
-    try {
-      await setDoc(userRef, profile, { merge: true });
-    } catch {}
-    setUserProfile(profile);
+    if (docSnap.exists()) {
+      const data = docSnap.data() as UserProfile;
+      const effectiveRole: UserRole = isSuper ? 'admin' : data.role || 'seeker';
+      setUserProfile({
+        ...data,
+        uid: fbUser.uid,
+        email: fbUser.email || trimmedEmail,
+        displayName: data.displayName || fbUser.displayName || 'User',
+        role: effectiveRole,
+        isPremium: isSuper || Boolean(data.isPremium)
+      });
+    }
   };
 
   const signupWithEmail = async (
@@ -257,27 +202,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string,
     role: UserRole,
     phone?: string
-  ): Promise<SignupResult> => {
+  ): Promise<AuthSuccessResult> => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!isValidGmail(trimmedEmail)) {
       throw new Error(GMAIL_ERROR_MESSAGE);
     }
 
-    // Call RoomSewa backend to create account and generate verification link
-    // Account remains unverified and user is NOT logged in per requirements
-    const result = await signupRoomSewa({
+    // Creates user via Firebase Auth, sends official Firebase verification email, and signs user out
+    return await signupWithFirebaseAuth({
       email: trimmedEmail,
       password: pass,
       name: name.trim(),
       role,
       phone: phone?.trim()
     });
+  };
 
-    return result;
+  const resendVerificationEmail = async (email: string, pass?: string): Promise<AuthSuccessResult> => {
+    return await resendVerificationWithFirebaseAuth(email, pass);
+  };
+
+  const forgotPassword = async (email: string): Promise<AuthSuccessResult> => {
+    return await forgotPasswordWithFirebaseAuth(email);
   };
 
   const logout = async () => {
-    localStorage.removeItem('roomsewa_auth_user');
     try {
       await fbSignOut(auth);
     } catch {}
@@ -320,44 +269,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await updateDoc(userRef, {
       ...data,
       updatedAt: new Date().toISOString()
-    }).catch(() => {});
-
-    if (data.displayName && auth.currentUser) {
-      try {
-        await fbUpdateProfile(auth.currentUser, { displayName: data.displayName });
-      } catch {}
-    }
+    });
 
     setUserProfile((prev) => (prev ? { ...prev, ...data } : null));
-
-    if (currentUser) {
-      const updatedUser = { ...currentUser, ...data };
-      setCurrentUser(updatedUser as any);
-      if (localStorage.getItem('roomsewa_auth_user')) {
-        localStorage.setItem('roomsewa_auth_user', JSON.stringify(updatedUser));
-      }
-    }
-
-    await refreshUserProfile();
   };
 
   const setUserRole = async (newRole: UserRole) => {
-    const activeUid = auth.currentUser?.uid || currentUser?.uid;
-    if (!activeUid) return;
+    if (!currentUser) return;
+    const isSuper = isSuperAdminEmail(currentUser.email);
+    const targetRole: UserRole = isSuper ? 'admin' : newRole;
 
-    const userRef = doc(db, 'users', activeUid);
+    const userRef = doc(db, 'users', currentUser.uid);
     await updateDoc(userRef, {
-      role: newRole,
+      role: targetRole,
       updatedAt: new Date().toISOString()
-    }).catch(() => {});
+    });
 
-    await refreshUserProfile();
+    setUserProfile((prev) => (prev ? { ...prev, role: targetRole } : null));
   };
 
-  const role: UserRole = userProfile?.role || (currentUser as any)?.role || 'seeker';
-  const isAdmin = role === 'admin' || isSuperAdminEmail(currentUser?.email);
-  const isPremium = Boolean(userProfile?.isPremium || (currentUser as any)?.isPremium || isAdmin);
-  const isOwner = Boolean(currentUser && (role === 'owner' || isAdmin));
+  const isAdmin = isSuperAdminEmail(currentUser?.email) || userProfile?.role === 'admin';
+  const isPremium = isAdmin || Boolean(userProfile?.isPremium);
+  const isOwner = userProfile?.role === 'owner' || isAdmin;
+  const role: UserRole = isAdmin ? 'admin' : (userProfile?.role || 'seeker');
 
   return (
     <AuthContext.Provider
@@ -368,6 +302,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithGoogle,
         loginWithEmail,
         signupWithEmail,
+        resendVerificationEmail,
+        forgotPassword,
         logout,
         updateUserProfile,
         setUserRole,
