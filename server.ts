@@ -5,7 +5,20 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import {
+  getFirestore,
+  collection,
+  doc,
+  updateDoc,
+  setDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  where
+} from 'firebase/firestore';
 import { sendVerificationEmail, sendPasswordResetEmail } from './emailService';
+import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
 
 dotenv.config();
 
@@ -15,8 +28,24 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Enable CORS for Netlify deployment and cross-origin requests
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+
+// Initialize server-side Firebase connection
+const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+const firestoreDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || '(default)');
 
 // Ensure public upload directories exist and serve statically
 const uploadsDir = path.resolve(__dirname, 'public/uploads/payments');
@@ -331,7 +360,8 @@ interface StoredAccount {
 }
 
 const ADMIN_EMAILS_LIST = [
-  'rajritesh1618@gmail.com',
+  'roomsewajanakpur@gmail.com',
+  'roomsewajnk@gmail.com',
   'admin@roomsewa.com',
   'admin@janakpurrooms.com'
 ];
@@ -350,14 +380,16 @@ function isValidGmailServer(email: string): boolean {
 
 const GMAIL_VALIDATION_ERROR = 'Please enter a valid Gmail address (example@gmail.com).';
 
-function getAppBaseUrl(req: Request): string {
+const PRODUCTION_ROOMSEWA_URL = 'https://roomsewajnk.netlify.app';
+
+function getAppBaseUrl(req?: Request): string {
   // 1. Explicit production URL from environment
   if (process.env.PRODUCTION_URL && !process.env.PRODUCTION_URL.includes('ais-dev-')) {
     return process.env.PRODUCTION_URL.replace(/\/+$/, '');
   }
 
   // 2. Client origin passed explicitly in request body
-  const bodyOrigin = req.body?.origin;
+  const bodyOrigin = req?.body?.origin;
   if (
     bodyOrigin &&
     typeof bodyOrigin === 'string' &&
@@ -370,7 +402,7 @@ function getAppBaseUrl(req: Request): string {
   }
 
   // 3. Client HTTP Origin header
-  const reqOrigin = req.headers['origin'];
+  const reqOrigin = req?.headers?.['origin'];
   if (
     reqOrigin &&
     typeof reqOrigin === 'string' &&
@@ -383,7 +415,7 @@ function getAppBaseUrl(req: Request): string {
   }
 
   // 4. Client HTTP Referer header
-  const reqReferer = req.headers['referer'];
+  const reqReferer = req?.headers?.['referer'];
   if (
     reqReferer &&
     typeof reqReferer === 'string' &&
@@ -398,19 +430,18 @@ function getAppBaseUrl(req: Request): string {
     } catch {}
   }
 
-  // 5. If APP_URL is internal ais-dev- URL, convert to public ais-pre- URL to prevent 403 error
-  if (process.env.APP_URL && process.env.APP_URL.includes('ais-dev-')) {
-    return process.env.APP_URL.replace('ais-dev-', 'ais-pre-').replace(/\/+$/, '');
+  // 5. If running locally on localhost, use localhost
+  if (req) {
+    const host = req.get('x-forwarded-host') || req.get('host') || '';
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      const proto = typeof forwardedProto === 'string' ? forwardedProto.split(',')[0].trim() : req.protocol;
+      return `${proto}://${host}`;
+    }
   }
 
-  if (process.env.APP_URL && process.env.APP_URL !== 'MY_APP_URL') {
-    return process.env.APP_URL.replace(/\/+$/, '');
-  }
-
-  const forwardedProto = req.headers['x-forwarded-proto'];
-  const proto = typeof forwardedProto === 'string' ? forwardedProto.split(',')[0].trim() : req.protocol;
-  const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
-  return `${proto}://${host}`;
+  // 6. Otherwise default to official RoomSewa Janakpur production domain
+  return PRODUCTION_ROOMSEWA_URL;
 }
 
 function loadAccounts(): StoredAccount[] {
@@ -626,6 +657,30 @@ app.post('/api/auth/verify-email', (req: Request, res: Response) => {
 
     saveAccounts(accounts);
 
+    // Sync verified status to Firestore
+    try {
+      await setDoc(doc(firestoreDb, 'emailVerifications', cleanEmail), {
+        email: cleanEmail,
+        isVerified: true,
+        isEmailVerified: true,
+        verifiedAt: new Date().toISOString()
+      }, { merge: true });
+
+      // If user profile exists in Firestore users collection, mark isEmailVerified: true
+      const usersQuery = query(collection(firestoreDb, 'users'), where('email', '==', cleanEmail));
+      const userSnap = await getDocs(usersQuery);
+      userSnap.forEach((uDoc) => {
+        updateDoc(doc(firestoreDb, 'users', uDoc.id), {
+          isEmailVerified: true,
+          isVerified: true,
+          emailVerified: true,
+          verifiedAt: new Date().toISOString()
+        }).catch(() => {});
+      });
+    } catch (fsErr) {
+      console.warn('[Firestore] Could not sync verified status:', fsErr);
+    }
+
     res.json({
       success: true,
       message: 'Your RoomSewa account has been successfully verified! You can now log in using your Gmail and password.',
@@ -634,6 +689,86 @@ app.post('/api/auth/verify-email', (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error verifying email:', err);
     res.status(500).json({ error: 'Could not verify email. Please try again.' });
+  }
+});
+
+// POST /api/auth/send-verification-email
+// Dispatches verification email directly from RoomSewa Janakpur Gmail account
+app.post('/api/auth/send-verification-email', async (req: Request, res: Response) => {
+  try {
+    const { email, name, uid } = req.body || {};
+
+    if (!email || !isValidGmailServer(email)) {
+      res.status(400).json({ error: GMAIL_VALIDATION_ERROR });
+      return;
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const verificationToken = generateSecureToken('verify');
+    const verificationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+    const accounts = loadAccounts();
+    const existingIndex = accounts.findIndex((a) => a.email.toLowerCase() === cleanEmail);
+
+    if (existingIndex >= 0) {
+      accounts[existingIndex].verificationToken = verificationToken;
+      accounts[existingIndex].verificationExpires = verificationExpires;
+      accounts[existingIndex].lastVerificationSentAt = new Date().toISOString();
+      saveAccounts(accounts);
+    } else {
+      accounts.push({
+        uid: uid || ('usr_' + Date.now()),
+        email: cleanEmail,
+        displayName: name ? String(name).trim() : cleanEmail.split('@')[0],
+        phoneNumber: '',
+        role: 'seeker',
+        isPremium: false,
+        salt: '',
+        passwordHash: '',
+        isVerified: false,
+        verificationToken,
+        verificationExpires,
+        lastVerificationSentAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      saveAccounts(accounts);
+    }
+
+    // Save token to Firestore emailVerifications collection
+    try {
+      await setDoc(doc(firestoreDb, 'emailVerifications', cleanEmail), {
+        email: cleanEmail,
+        token: verificationToken,
+        expiresAt: verificationExpires,
+        isVerified: false,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (fsErr) {
+      console.warn('[Firestore] Could not sync emailVerifications:', fsErr);
+    }
+
+    // Build verification link pointing to production RoomSewa domain
+    const baseUrl = getAppBaseUrl(req);
+    const verificationLink = `${baseUrl}/?action=verify-email&token=${verificationToken}&email=${encodeURIComponent(cleanEmail)}`;
+
+    console.log(`[RoomSewa Auth] Dispatching verification email from RoomSewa Janakpur to ${cleanEmail}...`);
+
+    await sendVerificationEmail({
+      to: cleanEmail,
+      name: name ? String(name).trim() : cleanEmail.split('@')[0],
+      verificationLink
+    });
+
+    res.json({
+      success: true,
+      message: "Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.",
+      email: cleanEmail,
+      remainingSeconds: 60
+    });
+  } catch (err: any) {
+    console.error('[RoomSewa Auth] Error sending verification email:', err);
+    res.status(500).json({ error: 'Failed to send verification email. Please try again.' });
   }
 });
 
@@ -916,8 +1051,73 @@ app.post('/api/auth/resend-verification', async (req: Request, res: Response) =>
   }
 });
 
+// Real-time Firestore mail listener for outgoing mail requests (fail-safe background worker)
+function initFirestoreMailListener() {
+  try {
+    const mailCol = collection(firestoreDb, 'mailRequests');
+    onSnapshot(mailCol, async (snapshot) => {
+      for (const change of snapshot.docChanges()) {
+        if (change.type === 'added' || change.type === 'modified') {
+          const data = change.doc.data();
+          if (data && data.status === 'pending' && data.to) {
+            const docId = change.doc.id;
+            console.log(`[MailWorker:Firestore] Processing mail request ${docId} for ${data.to}...`);
+            try {
+              // Immediately flag processing so it is not processed twice
+              await updateDoc(doc(firestoreDb, 'mailRequests', docId), { status: 'processing' });
+
+              if (data.type === 'verification') {
+                const token = data.token || generateSecureToken('verify');
+                const baseUrl = data.origin && !data.origin.includes('localhost') ? data.origin.replace(/\/+$/, '') : PRODUCTION_ROOMSEWA_URL;
+                const verificationLink = data.verificationLink || `${baseUrl}/?action=verify-email&token=${token}&email=${encodeURIComponent(data.to)}`;
+
+                const sendRes = await sendVerificationEmail({
+                  to: data.to,
+                  name: data.name || 'User',
+                  verificationLink
+                });
+
+                await updateDoc(doc(firestoreDb, 'mailRequests', docId), {
+                  status: 'sent',
+                  messageId: sendRes.messageId,
+                  sentAt: new Date().toISOString()
+                });
+                console.log(`[MailWorker:Firestore] Verification email successfully sent to ${data.to}`);
+              } else if (data.type === 'password_reset') {
+                const sendRes = await sendPasswordResetEmail({
+                  to: data.to,
+                  resetLink: data.resetLink
+                });
+                await updateDoc(doc(firestoreDb, 'mailRequests', docId), {
+                  status: 'sent',
+                  messageId: sendRes.messageId,
+                  sentAt: new Date().toISOString()
+                });
+                console.log(`[MailWorker:Firestore] Password reset email successfully sent to ${data.to}`);
+              }
+            } catch (err: any) {
+              console.error(`[MailWorker:Firestore] Error sending email for ${docId}:`, err);
+              await updateDoc(doc(firestoreDb, 'mailRequests', docId), {
+                status: 'error',
+                errorMessage: err?.message || 'Delivery failed',
+                failedAt: new Date().toISOString()
+              }).catch(() => {});
+            }
+          }
+        }
+      }
+    }, (err) => {
+      console.warn('[MailWorker:Firestore] Listener error:', err?.message);
+    });
+  } catch (err) {
+    console.warn('[MailWorker:Firestore] Could not start listener:', err);
+  }
+}
+
 // Setup Vite middlewares in development or static file serving in production
 async function startServer() {
+  initFirestoreMailListener();
+
   const isProd = process.env.NODE_ENV === 'production';
 
   if (!isProd) {

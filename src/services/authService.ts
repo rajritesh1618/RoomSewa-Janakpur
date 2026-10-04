@@ -50,6 +50,53 @@ export interface ResetPasswordResult {
   email?: string;
 }
 
+const BACKEND_BASE_URL = 'https://ais-pre-uop2nnhngsmjntleqs5223-542336724245.asia-southeast1.run.app';
+
+async function apiFetch(path: string, options: RequestInit): Promise<Response> {
+  const isNetlify = typeof window !== 'undefined' && window.location.hostname.includes('netlify.app');
+  try {
+    const res = await fetch(path, options);
+    const contentType = res.headers.get('content-type') || '';
+    if ((!res.ok || contentType.includes('text/html')) && isNetlify) {
+      return await fetch(`${BACKEND_BASE_URL}${path}`, options);
+    }
+    return res;
+  } catch (err) {
+    if (isNetlify) {
+      return await fetch(`${BACKEND_BASE_URL}${path}`, options);
+    }
+    throw err;
+  }
+}
+
+export async function sendVerificationEmailRoomSewa(
+  email: string,
+  name?: string,
+  uid?: string
+): Promise<{ success: boolean; message: string; remainingSeconds?: number }> {
+  if (!isValidGmail(email)) {
+    throw new Error(GMAIL_ERROR_MESSAGE);
+  }
+
+  const res = await apiFetch('/api/auth/send-verification-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email,
+      name,
+      uid,
+      origin: typeof window !== 'undefined' ? window.location.origin : undefined
+    })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to dispatch verification email');
+  }
+
+  return data;
+}
+
 export async function signupRoomSewa(params: {
   email: string;
   password: string;
@@ -63,10 +110,17 @@ export async function signupRoomSewa(params: {
     throw new Error(GMAIL_ERROR_MESSAGE);
   }
 
-  const res = await fetch('/api/auth/signup', {
+  const res = await apiFetch('/api/auth/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, name, role, phone })
+    body: JSON.stringify({
+      email,
+      password,
+      name,
+      role,
+      phone,
+      origin: typeof window !== 'undefined' ? window.location.origin : undefined
+    })
   });
 
   const data = await res.json();
@@ -82,7 +136,7 @@ export async function verifyEmailRoomSewa(token: string, email: string): Promise
     throw new Error(GMAIL_ERROR_MESSAGE);
   }
 
-  const res = await fetch('/api/auth/verify-email', {
+  const res = await apiFetch('/api/auth/verify-email', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, email })
@@ -101,7 +155,7 @@ export async function loginRoomSewa(email: string, password: string): Promise<Lo
     throw new Error(GMAIL_ERROR_MESSAGE);
   }
 
-  const res = await fetch('/api/auth/login', {
+  const res = await apiFetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
@@ -123,10 +177,13 @@ export async function forgotPasswordRoomSewa(email: string): Promise<ForgotPassw
     throw new Error(GMAIL_ERROR_MESSAGE);
   }
 
-  const res = await fetch('/api/auth/forgot-password', {
+  const res = await apiFetch('/api/auth/forgot-password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email })
+    body: JSON.stringify({
+      email,
+      origin: typeof window !== 'undefined' ? window.location.origin : undefined
+    })
   });
 
   const data = await res.json();
@@ -153,7 +210,7 @@ export async function resetPasswordRoomSewa(params: {
     throw new Error('Both passwords must match before allowing the password to be changed.');
   }
 
-  const res = await fetch('/api/auth/reset-password', {
+  const res = await apiFetch('/api/auth/reset-password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, token, newPassword, confirmPassword })
@@ -172,10 +229,13 @@ export async function resendVerificationLink(email: string): Promise<SignupResul
     throw new Error(GMAIL_ERROR_MESSAGE);
   }
 
-  const res = await fetch('/api/auth/resend-verification', {
+  const res = await apiFetch('/api/auth/resend-verification', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email })
+    body: JSON.stringify({
+      email,
+      origin: typeof window !== 'undefined' ? window.location.origin : undefined
+    })
   });
 
   const data = await res.json();

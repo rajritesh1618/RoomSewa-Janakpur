@@ -23,7 +23,8 @@ export const googleProvider = new GoogleAuthProvider();
 
 // Designate app super-admins
 export const ADMIN_EMAILS = [
-  'rajritesh1618@gmail.com',
+  'roomsewajanakpur@gmail.com',
+  'roomsewajnk@gmail.com',
   'admin@roomsewa.com',
   'admin@janakpurrooms.com'
 ];

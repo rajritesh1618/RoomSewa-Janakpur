@@ -290,7 +290,7 @@ export const DEFAULT_APP_CONTENT: AppContentConfig = {
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   adminDisplayName: 'Janakpur Admin Desk',
-  adminEmail: 'rajritesh1618@gmail.com',
+  adminEmail: 'roomsewajanakpur@gmail.com',
   adminPhone: '+9779844012345',
   supportPhone: '+9779844012345',
   supportEmail: 'support@roomsewa.com',

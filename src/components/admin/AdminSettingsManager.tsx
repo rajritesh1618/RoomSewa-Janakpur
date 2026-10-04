@@ -33,7 +33,7 @@ export const AdminSettingsManager: React.FC<AdminSettingsManagerProps> = ({
   onSaveSettings
 }) => {
   const [adminDisplayName, setAdminDisplayName] = useState(settings.adminDisplayName || 'Janakpur Admin Desk');
-  const [adminEmail, setAdminEmail] = useState(settings.adminEmail || 'rajritesh1618@gmail.com');
+  const [adminEmail, setAdminEmail] = useState(settings.adminEmail || 'roomsewajanakpur@gmail.com');
   const [adminPhone, setAdminPhone] = useState(settings.adminPhone || '+977 9800000000');
   const [supportPhone, setSupportPhone] = useState(settings.supportPhone || '+977 9800000000');
   const [supportEmail, setSupportEmail] = useState(settings.supportEmail || 'support@roomsewa.com');

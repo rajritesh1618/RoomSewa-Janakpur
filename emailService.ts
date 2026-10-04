@@ -36,7 +36,7 @@ async function dispatchEmail(params: {
   const { to, subject, text, html } = params;
 
   // 1. Primary: Official RoomSewa Gmail SMTP (roomsewajanakpur@gmail.com)
-  const gmailUser = process.env.GMAIL_USER || (process.env.SMTP_USER && process.env.SMTP_USER.endsWith('@gmail.com') ? process.env.SMTP_USER : '');
+  const gmailUser = process.env.GMAIL_USER || (process.env.SMTP_USER && process.env.SMTP_USER.endsWith('@gmail.com') ? process.env.SMTP_USER : 'roomsewajanakpur@gmail.com');
   const gmailPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS;
 
   if (gmailUser && gmailPass) {
@@ -57,6 +57,7 @@ async function dispatchEmail(params: {
 
       const info = await transporter.sendMail({
         from: `"RoomSewa Janakpur" <${gmailUser}>`,
+        replyTo: `"RoomSewa Janakpur" <${gmailUser}>`,
         to,
         subject,
         text,
