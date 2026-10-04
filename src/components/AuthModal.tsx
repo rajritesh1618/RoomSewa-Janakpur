@@ -26,6 +26,7 @@ import {
 import { isValidGmail, GMAIL_ERROR_MESSAGE } from '../utils/emailValidator';
 import { NepalPhoneInput } from './common/NepalPhoneInput';
 import { resetPasswordWithFirebaseAuth } from '../services/firebaseAuthService';
+import { JanakiMandirLogo, MithilaBorderStrip } from './common/MithilaMotifs';
 
 export type AuthMode =
   | 'login'
@@ -301,15 +302,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div
         id="auth-modal"
-        className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col"
+        className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-amber-200/90 overflow-hidden max-h-[92vh] flex flex-col"
       >
+        {/* Top Decorative Mithila Border Strip */}
+        <MithilaBorderStrip variant="saffron" className="opacity-90 shrink-0" />
+
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors z-10"
+          className="absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-700 hover:bg-amber-50 rounded-xl transition-colors z-10 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -317,7 +321,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="p-6 sm:p-8 overflow-y-auto">
           {/* Header */}
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-extrabold text-slate-900 font-heading">
+            <div className="flex justify-center mb-3">
+              <JanakiMandirLogo size={52} className="drop-shadow-xs" />
+            </div>
+            <h2 className="text-2xl font-black text-stone-900 font-heading">
               {mode === 'login' && 'Welcome Back'}
               {mode === 'signup' && 'Create RoomSewa Account'}
               {mode === 'forgot-password' && 'Forgot Password?'}
@@ -325,7 +332,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {mode === 'verification-sent' && 'Verify Your Gmail'}
               {mode === 'reset-password' && 'Set New Password'}
             </h2>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-stone-500 mt-1">
               {mode === 'login' && 'Sign in to access your Janakpur saved rooms and listings'}
               {mode === 'signup' && 'Join RoomSewa Janakpur as a room seeker or property owner'}
               {mode === 'forgot-password' && 'Enter your registered Gmail address to receive a secure password-reset link'}
@@ -337,7 +344,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* Tab Switcher for standard Login vs Sign Up */}
           {(mode === 'login' || mode === 'signup') && (
-            <div className="flex p-1 bg-slate-100 rounded-xl mb-6">
+            <div className="flex p-1 bg-amber-100/70 border border-amber-200/80 rounded-xl mb-6">
               <button
                 type="button"
                 id="tab-login-btn"
@@ -350,8 +357,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 }}
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                   mode === 'login'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
                 Sign In
@@ -368,8 +375,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 }}
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                   mode === 'signup'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
                 Sign Up
@@ -593,24 +600,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         onClick={() => setRole('seeker')}
                         className={`p-2.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${
                           role === 'seeker'
-                            ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700 shadow-xs'
-                            : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                            ? 'border-amber-500 bg-amber-50/80 text-amber-950 shadow-xs'
+                            : 'border-stone-200 text-stone-600 hover:bg-amber-50/40'
                         }`}
                       >
                         <span>Room Seeker</span>
-                        <span className="text-[10px] font-normal text-slate-500">Looking for room</span>
+                        <span className="text-[10px] font-normal text-stone-500">Looking for room</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setRole('owner')}
                         className={`p-2.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${
                           role === 'owner'
-                            ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700 shadow-xs'
-                            : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                            ? 'border-amber-500 bg-amber-50/80 text-amber-950 shadow-xs'
+                            : 'border-stone-200 text-stone-600 hover:bg-amber-50/40'
                         }`}
                       >
                         <span>Room Owner</span>
-                        <span className="text-[10px] font-normal text-slate-500">List room or flat</span>
+                        <span className="text-[10px] font-normal text-stone-500">List room or flat</span>
                       </button>
                     </div>
                   </div>
@@ -817,7 +824,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     ? !isEmailValid
                     : !isResetValid)
                 }
-                className="w-full mt-3 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md shadow-indigo-600/20 disabled:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full mt-3 py-3 rounded-xl bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600 hover:from-orange-700 hover:to-rose-700 disabled:from-stone-300 disabled:to-stone-300 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md shadow-orange-600/20 disabled:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {submitting ? (
                   <span className="flex items-center gap-2">

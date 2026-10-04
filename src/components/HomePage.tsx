@@ -14,6 +14,12 @@ import {
   Wifi,
   Users
 } from 'lucide-react';
+import {
+  MithilaLotusIcon,
+  MithilaPeacockIcon,
+  MithilaBorderStrip,
+  JanakiMandirSkyline
+} from './common/MithilaMotifs';
 import { useRooms } from '../context/RoomContext';
 import { useAuth } from '../context/AuthContext';
 import { useContent } from '../context/ContentContext';
@@ -64,7 +70,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
           <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-300 text-amber-950 flex items-center justify-between gap-3 text-xs sm:text-sm font-semibold">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white font-bold text-[11px] uppercase tracking-wider">
+              <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-[11px] uppercase tracking-wider">
                 Notice
               </span>
               <span>
@@ -79,45 +85,59 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 1. HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-amber-500/10 via-rose-500/5 to-slate-50 border-b border-slate-200/80 pt-8 sm:pt-14 pb-14 sm:pb-20">
+      {/* 1. HERO SECTION - With Mithila Heritage & Janki Mandir Architecture */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-amber-500/10 via-orange-500/5 to-[#fbf9f5] border-b border-amber-200/80 pt-8 sm:pt-14 pb-14 sm:pb-20">
+        {/* Subtle Janaki Mandir Temple Skyline Ambient Backdrop */}
+        <div className="absolute inset-x-0 bottom-0 text-amber-700/15 pointer-events-none">
+          <JanakiMandirSkyline className="h-32 sm:h-44" />
+        </div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           
-          {/* Tagline Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-amber-200 shadow-xs mb-6">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-bold text-slate-800">
-              {appContent.heroBadge || "Janakpurdham's #1 Verified Room & Flat Platform"}
+          {/* Tagline Badge with Mithila Lotus */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/95 border border-amber-300/80 shadow-xs mb-6 backdrop-blur-xs">
+            <MithilaLotusIcon size={16} color="#ea580c" />
+            <span className="text-xs font-bold text-amber-950">
+              {appContent.heroBadge || "जनकपुरधामको आधिकारिक कोठा सेवा · Janakpur's #1 Rental Platform"}
             </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
 
           {/* Main Display Headline */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 font-heading max-w-4xl mx-auto leading-tight">
-            {appContent.heroTitle || 'Find the Perfect Room in Janakpur Without Middlemen'}
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-stone-900 font-heading max-w-4xl mx-auto leading-tight">
+            {appContent.heroTitle || (
+              <>
+                Find the Perfect Room in{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600">
+                  Janakpur
+                </span>{' '}
+                Without Middlemen
+              </>
+            )}
           </h1>
 
-          <p className="text-sm sm:text-lg text-slate-600 max-w-2xl mx-auto mt-4 font-normal">
+          <p className="text-sm sm:text-lg text-stone-600 max-w-2xl mx-auto mt-4 font-normal leading-relaxed">
             {appContent.heroSubtitle ||
-              'Direct connection between room owners and students, working professionals, and families across all popular chowks in Janakpur, Nepal.'}
+              'Direct connection between verified room owners and students, working professionals, and families across all iconic chowks of Janakpurdham.'}
           </p>
 
           {/* Direct Search Bar Box */}
           {isFeatureVisible('search') && (
-            <div className="mt-8 sm:mt-10 max-w-3xl mx-auto bg-white p-3 rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200">
+            <div className="mt-8 sm:mt-10 max-w-3xl mx-auto bg-white p-3.5 rounded-3xl shadow-xl shadow-amber-900/5 border border-amber-200/90">
               <form onSubmit={handleHeroSearch} className="flex flex-col sm:flex-row items-center gap-2.5">
                 
                 {/* Chowk Select */}
                 {isFeatureVisible('chowks') && (
-                  <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/80 w-full sm:w-1/2 text-left">
-                    <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                  <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-amber-50/50 border border-amber-200/80 w-full sm:w-1/2 text-left focus-within:border-amber-400 transition-colors">
+                    <MapPin className="w-4 h-4 text-rose-600 shrink-0" />
                     <div className="flex-1">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-amber-800/80">
                         Location / Chowk
                       </label>
                       <select
                         value={searchChowk}
                         onChange={(e) => setSearchChowk(e.target.value)}
-                        className="w-full bg-transparent text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                        className="w-full bg-transparent text-xs font-bold text-stone-900 outline-none cursor-pointer"
                       >
                         <option value="all">All Janakpur Chowks</option>
                         {visibleChowks.map((c) => (
@@ -131,10 +151,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 )}
 
                 {/* Keyword / Room Type */}
-                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/80 w-full sm:w-1/2 text-left">
-                  <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-amber-50/50 border border-amber-200/80 w-full sm:w-1/2 text-left focus-within:border-amber-400 transition-colors">
+                  <Search className="w-4 h-4 text-amber-600 shrink-0" />
                   <div className="flex-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-amber-800/80">
                       Search Keyword
                     </label>
                     <input
@@ -142,7 +162,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="1BHK, student room, wifi..."
-                      className="w-full bg-transparent text-xs font-semibold text-slate-900 outline-none"
+                      className="w-full bg-transparent text-xs font-semibold text-stone-900 outline-none placeholder:text-stone-400"
                     />
                   </div>
                 </div>
@@ -150,7 +170,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 {/* Search Submit Button */}
                 <button
                   type="submit"
-                  className="w-full sm:w-auto px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 shrink-0"
+                  className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600 hover:from-orange-700 hover:to-rose-700 text-white rounded-2xl font-bold text-xs shadow-md shadow-orange-600/25 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
                 >
                   <Search className="w-4 h-4" />
                   Search Rooms
@@ -159,15 +179,18 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           )}
 
-          {/* Popular Chowks Quick Row */}
+          {/* Popular Chowks Quick Row with Mithila styling */}
           {isFeatureVisible('chowks') && (
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs">
-              <span className="text-slate-500 font-semibold">Popular Chowks:</span>
+              <span className="text-amber-950 font-bold flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-rose-600" />
+                Popular Chowks:
+              </span>
               {['Bhanu Chowk', 'Shiva Chowk', 'Ramanand Chowk', 'Murali Chowk', 'Hospital Road'].map((name) => (
                 <button
                   key={name}
                   onClick={() => onNavigateListings(name)}
-                  className="px-3 py-1 rounded-full bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80 font-medium transition-colors"
+                  className="px-3.5 py-1.5 rounded-xl bg-white/95 hover:bg-amber-100/70 text-amber-950 border border-amber-200/80 font-semibold shadow-2xs transition-all cursor-pointer"
                 >
                   {name}
                 </button>
@@ -178,21 +201,21 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* Home Page Authentication Buttons for Non-logged-in Guests */}
           {!currentUser && (
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <span className="text-xs font-medium text-slate-500">
+              <span className="text-xs font-medium text-stone-500">
                 New to RoomSewa Janakpur?
               </span>
               <div className="flex items-center gap-2">
                 <button
                   id="home-login-btn"
                   onClick={() => onOpenAuth('login')}
-                  className="px-5 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl shadow-xs transition-all"
+                  className="px-5 py-2 text-xs font-bold text-amber-950 bg-white hover:bg-amber-50 border border-amber-300 rounded-xl shadow-xs transition-all cursor-pointer"
                 >
                   Log In
                 </button>
                 <button
                   id="home-signup-btn"
                   onClick={() => onOpenAuth('signup')}
-                  className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+                  className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600 hover:from-orange-700 hover:to-rose-700 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>Sign Up</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -208,17 +231,22 @@ export const HomePage: React.FC<HomePageProps> = ({
       {isFeatureVisible('chowks') && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-heading">
-                Select Rooms by Janakpur Chowk
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-500">
-                Browse rooms situated directly in the heart of Janakpur's main neighborhoods
-              </p>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-100/90 text-amber-900 flex items-center justify-center shadow-xs">
+                <MithilaLotusIcon size={20} color="#ea580c" />
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-stone-900 font-heading">
+                  Select Rooms by Janakpur Chowk
+                </h2>
+                <p className="text-xs sm:text-sm text-stone-600">
+                  Browse rooms situated directly in the heart of Janakpur's main neighborhoods
+                </p>
+              </div>
             </div>
             <button
               onClick={() => onNavigateListings()}
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+              className="text-xs font-bold text-orange-700 hover:text-orange-800 flex items-center gap-1 cursor-pointer"
             >
               View All ({rooms.length})
               <ArrowRight className="w-3.5 h-3.5" />
@@ -234,15 +262,15 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <div
                   key={c.id}
                   onClick={() => onNavigateListings(c.name)}
-                  className="p-3.5 bg-white rounded-2xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer group text-left"
+                  className="p-3.5 bg-white rounded-2xl border border-amber-200/80 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group text-left relative overflow-hidden"
                 >
-                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
-                    <MapPin className="w-4 h-4" />
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
+                    <MapPin className="w-4 h-4 text-rose-600" />
                   </div>
-                  <h3 className="font-heading font-bold text-xs sm:text-sm text-slate-900 group-hover:text-indigo-600 truncate">
+                  <h3 className="font-heading font-bold text-xs sm:text-sm text-stone-900 group-hover:text-orange-700 truncate">
                     {c.name}
                   </h3>
-                  <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                  <p className="text-[10px] text-stone-500 font-medium truncate mt-0.5">
                     {count} available rooms
                   </p>
                 </div>
@@ -261,10 +289,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <Crown className="w-4 h-4 fill-amber-600 text-amber-600" />
               </div>
               <div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-heading">
+                <h2 className="text-xl sm:text-2xl font-black text-stone-900 font-heading">
                   Featured & Verified Rooms
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500">
+                <p className="text-xs sm:text-sm text-stone-600">
                   Recommended listings from verified property owners in Janakpur
                 </p>
               </div>
@@ -272,7 +300,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             <button
               onClick={() => onNavigateListings()}
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+              className="text-xs font-bold text-orange-700 hover:text-orange-800 flex items-center gap-1 cursor-pointer"
             >
               Browse All
               <ArrowRight className="w-3.5 h-3.5" />
@@ -297,17 +325,17 @@ export const HomePage: React.FC<HomePageProps> = ({
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-heading">
+            <h2 className="text-xl sm:text-2xl font-black text-stone-900 font-heading">
               Recently Added Available Rooms
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500">
+            <p className="text-xs sm:text-sm text-stone-600">
               Vacant rooms, 1BHK flats, and student rooms ready to move in
             </p>
           </div>
 
           <button
             onClick={() => onNavigateListings()}
-            className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+            className="text-xs font-bold text-orange-700 hover:text-orange-800 flex items-center gap-1 cursor-pointer"
           >
             See More Rooms
             <ArrowRight className="w-3.5 h-3.5" />
@@ -330,27 +358,27 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* Dynamic Frequently Asked Questions from Database */}
       {appContent.faqs && appContent.faqs.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200 shadow-xs">
+          <div className="bg-white rounded-3xl p-8 sm:p-10 border border-amber-200/80 shadow-xs">
             <div className="max-w-2xl mb-8">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-600">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-orange-700">
                 Help & Guidelines
               </span>
-              <h2 className="text-2xl font-black text-slate-900 font-heading mt-1">
+              <h2 className="text-2xl font-black text-stone-900 font-heading mt-1">
                 Frequently Asked Questions
               </h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              <p className="text-xs sm:text-sm text-stone-600 mt-1">
                 Everything you need to know about renting rooms and flats in Janakpurdham.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {appContent.faqs.map((faq, idx) => (
-                <div key={faq.id || idx} className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
-                  <h3 className="text-sm font-bold text-slate-900 flex items-start gap-2">
-                    <span className="text-indigo-600 shrink-0 font-extrabold font-mono">Q.</span>
+                <div key={faq.id || idx} className="p-5 rounded-2xl bg-amber-50/40 border border-amber-200/60 space-y-2">
+                  <h3 className="text-sm font-bold text-stone-900 flex items-start gap-2">
+                    <span className="text-orange-700 shrink-0 font-extrabold font-mono">Q.</span>
                     {faq.question}
                   </h3>
-                  <p className="text-xs text-slate-600 leading-relaxed pl-5">
+                  <p className="text-xs text-stone-600 leading-relaxed pl-5">
                     {faq.answer}
                   </p>
                 </div>
@@ -360,20 +388,25 @@ export const HomePage: React.FC<HomePageProps> = ({
         </section>
       )}
 
-      {/* 5. OWNER CALLOUT: LIST YOUR ROOM & LIFETIME PREMIUM */}
+      {/* 5. OWNER CALLOUT: LIST YOUR ROOM & LIFETIME PREMIUM - Mithila Terracotta & Bronze */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden shadow-xl">
+        <div className="bg-gradient-to-br from-[#2a1309] via-[#3a180b] to-[#1a0b04] border border-amber-500/30 rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden shadow-2xl">
+          {/* Subtle Aripan Frieze at top of Callout */}
+          <div className="absolute top-0 inset-x-0 opacity-40">
+            <MithilaBorderStrip variant="cream" />
+          </div>
+
           <div className="relative z-10 max-w-2xl">
             {isFeatureVisible('premium') && premiumConfig.enabled && (
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-amber-400 text-slate-950 font-bold text-xs mb-4">
-                <Crown className="w-3.5 h-3.5 fill-slate-950" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-amber-400 text-stone-950 font-bold text-xs mb-4 shadow-xs">
+                <Crown className="w-3.5 h-3.5 fill-stone-950" />
                 Room Owners in Janakpur
               </div>
             )}
-            <h2 className="text-2xl sm:text-4xl font-extrabold font-heading">
+            <h2 className="text-2xl sm:text-4xl font-black font-heading leading-tight">
               Have an empty room or flat in Janakpur?
             </h2>
-            <p className="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed">
+            <p className="text-xs sm:text-sm text-amber-100/90 mt-2 leading-relaxed">
               List your room for free{isFeatureVisible('premium') && premiumConfig.enabled ? ` or upgrade to Lifetime Premium for Rs ${premiumConfig.priceNPR || 200} to get unlimited listings, verified gold badges, and priority search visibility across Janakpur.` : ' and reach thousands of seekers in Janakpur.'}
             </p>
 
@@ -381,7 +414,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               {isFeatureVisible('room_listing') && (
                 <button
                   onClick={onNavigateAddRoom}
-                  className="px-6 py-3 rounded-xl bg-white text-slate-900 font-bold text-xs hover:bg-slate-100 shadow-md transition-all"
+                  className="px-6 py-3 rounded-xl bg-white text-stone-950 font-bold text-xs hover:bg-amber-50 shadow-md transition-all cursor-pointer"
                 >
                   List Your Room (Owners)
                 </button>
@@ -391,7 +424,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <button
                     id="home-cta-signup-btn"
                     onClick={() => onOpenAuth('signup')}
-                    className="px-6 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>Sign Up Free</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -399,7 +432,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <button
                     id="home-cta-login-btn"
                     onClick={() => onOpenAuth('login')}
-                    className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 backdrop-blur-xs transition-all flex items-center gap-1.5"
+                    className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-amber-300/30 backdrop-blur-xs transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     Log In
                   </button>
@@ -408,15 +441,15 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <button
                   id="homepage-premium-btn"
                   onClick={onNavigatePremium}
-                  className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Crown className="w-3.5 h-3.5 fill-slate-950" />
+                  <Crown className="w-3.5 h-3.5 fill-stone-950" />
                   Owner Premium Dashboard
                 </button>
               ) : (
                 <button
                   onClick={() => onNavigateListings()}
-                  className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 backdrop-blur-xs transition-all flex items-center gap-1.5"
+                  className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-amber-300/30 backdrop-blur-xs transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <Search className="w-3.5 h-3.5 text-amber-300" />
                   Browse Available Rooms

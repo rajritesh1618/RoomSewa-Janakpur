@@ -18,6 +18,7 @@ import {
   Camera,
   ChevronDown
 } from 'lucide-react';
+import { JanakiMandirLogo, MithilaBorderStrip } from './common/MithilaMotifs';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { useProfilePicture } from '../context/ProfilePictureContext';
@@ -51,7 +52,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
+    <header className="sticky top-0 z-40 bg-[#fffdfa]/95 backdrop-blur border-b border-amber-200/90 shadow-xs">
+      {/* Decorative Traditional Mithila Aripan Strip on Top */}
+      <MithilaBorderStrip variant="saffron" className="opacity-80" />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-18">
           
@@ -61,20 +65,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
             onClick={() => handleNav('home')}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-600 via-rose-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-rose-500/20 group-hover:scale-105 transition-transform duration-200">
-              <Building2 className="w-6 h-6" />
-            </div>
+            <JanakiMandirLogo size={46} className="group-hover:scale-105 transition-transform drop-shadow-xs" />
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xl font-extrabold tracking-tight text-slate-900 font-heading">
+                <span className="text-xl sm:text-2xl font-black tracking-tight text-stone-900 font-heading">
                   RoomSewa
                 </span>
-                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 text-white shadow-xs">
                   Janakpur
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-                जनकपुरधाम कोठा तथा फ्ल्याट सेवा
+              <p className="text-[11px] text-amber-900/80 font-bold hidden sm:flex items-center gap-1.5 mt-0.5">
+                <span>जनकपुरधाम</span>
+                <span className="text-amber-500">•</span>
+                <span className="text-stone-600 font-medium">Mithila Rentals</span>
               </p>
             </div>
           </div>
@@ -85,10 +89,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
               <button
                 id="nav-home-btn"
                 onClick={() => handleNav('home')}
-                className={`px-3.5 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                className={`px-3.5 py-2 text-sm font-bold rounded-xl transition-all ${
                   currentView === 'home'
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'bg-amber-100/80 text-amber-950 border border-amber-300/80 shadow-xs'
+                    : 'text-stone-700 hover:text-amber-950 hover:bg-amber-50/70'
                 }`}
               >
                 Home
@@ -98,13 +102,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
               <button
                 id="nav-listings-btn"
                 onClick={() => handleNav('listings')}
-                className={`px-3.5 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+                className={`px-3.5 py-2 text-sm font-bold rounded-xl transition-all flex items-center gap-1.5 ${
                   currentView === 'listings'
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'bg-amber-100/80 text-amber-950 border border-amber-300/80 shadow-xs'
+                    : 'text-stone-700 hover:text-amber-950 hover:bg-amber-50/70'
                 }`}
               >
-                <Search className="w-4 h-4 text-slate-400" />
+                <Search className="w-4 h-4 text-amber-600" />
                 Find Rooms
               </button>
             )}
@@ -112,13 +116,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
               <button
                 id="nav-chowks-btn"
                 onClick={() => handleNav('chowks')}
-                className={`px-3.5 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+                className={`px-3.5 py-2 text-sm font-bold rounded-xl transition-all flex items-center gap-1.5 ${
                   currentView === 'chowks'
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'bg-amber-100/80 text-amber-950 border border-amber-300/80 shadow-xs'
+                    : 'text-stone-700 hover:text-amber-950 hover:bg-amber-50/70'
                 }`}
               >
-                <MapPin className="w-4 h-4 text-amber-500" />
+                <MapPin className="w-4 h-4 text-rose-600" />
                 Chowks
               </button>
             )}
@@ -126,13 +130,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
               <button
                 id="nav-premium-btn"
                 onClick={() => handleNav('premium')}
-                className={`px-3.5 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+                className={`px-3.5 py-2 text-sm font-bold rounded-xl transition-all flex items-center gap-1.5 ${
                   currentView === 'premium'
-                    ? 'bg-amber-50 text-amber-900 border border-amber-200'
-                    : 'text-slate-600 hover:text-amber-700 hover:bg-amber-50/60'
+                    ? 'bg-amber-200/80 text-amber-950 border border-amber-400/80 shadow-xs'
+                    : 'text-amber-900 hover:text-amber-950 hover:bg-amber-100/60'
                 }`}
               >
-                <Crown className="w-4 h-4 text-amber-500 fill-amber-500" />
+                <Crown className="w-4 h-4 text-amber-600 fill-amber-500" />
                 Premium (Rs {premiumConfig.priceNPR || 200})
               </button>
             )}
@@ -140,16 +144,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
               <button
                 id="nav-messages-btn"
                 onClick={() => handleNav('messages')}
-                className={`px-3.5 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-1.5 relative ${
+                className={`px-3.5 py-2 text-sm font-bold rounded-xl transition-all flex items-center gap-1.5 relative ${
                   currentView === 'messages'
-                    ? 'bg-indigo-50 text-indigo-900 font-bold border border-indigo-200'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'bg-amber-100/80 text-amber-950 border border-amber-300/80 shadow-xs'
+                    : 'text-stone-700 hover:text-amber-950 hover:bg-amber-50/70'
                 }`}
               >
-                <MessageSquare className="w-4 h-4 text-indigo-600" />
+                <MessageSquare className="w-4 h-4 text-orange-600" />
                 <span>Messages</span>
                 {totalUnreadCount > 0 && (
-                  <span className="px-1.5 py-0.2 text-[10px] font-extrabold rounded-full bg-rose-500 text-white animate-pulse">
+                  <span className="px-1.5 py-0.2 text-[10px] font-extrabold rounded-full bg-rose-600 text-white animate-pulse">
                     {totalUnreadCount}
                   </span>
                 )}
@@ -169,9 +173,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
                     handleNav('add-room');
                   }
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-sm transition-all"
+                className="inline-flex items-center gap-2 px-4.5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600 hover:from-orange-700 hover:to-rose-700 rounded-xl shadow-md shadow-orange-600/20 transition-all cursor-pointer"
               >
-                <PlusCircle className="w-4 h-4 text-amber-400" />
+                <PlusCircle className="w-4 h-4 text-amber-200" />
                 {isFreeUsed ? 'List Room' : 'List Room Free'}
               </button>
             )}
@@ -377,14 +381,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
                 <button
                   id="nav-login-btn"
                   onClick={() => onOpenAuth('login')}
-                  className="px-4 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+                  className="px-4 py-2 text-sm font-bold text-amber-950 hover:bg-amber-100/60 rounded-xl transition-colors cursor-pointer"
                 >
                   Log In
                 </button>
                 <button
                   id="nav-signup-btn"
                   onClick={() => onOpenAuth('signup')}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all"
+                  className="px-4.5 py-2 text-sm font-bold text-white bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600 hover:from-orange-700 hover:to-rose-700 rounded-xl shadow-xs transition-all cursor-pointer"
                 >
                   Sign Up
                 </button>
@@ -398,7 +402,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
               <button
                 id="mobile-profile-pic-btn"
                 onClick={() => openMenu()}
-                className="p-1 rounded-xl border border-slate-200 relative group overflow-hidden"
+                className="p-1 rounded-xl border border-amber-200 relative group overflow-hidden bg-white"
                 title="Click to see or change profile picture"
                 aria-label="Profile picture menu"
               >
@@ -412,7 +416,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
             <button
               id="mobile-menu-toggle-btn"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl"
+              className="p-2 text-amber-950 hover:bg-amber-100/60 rounded-xl cursor-pointer"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -424,9 +428,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3">
+        <div className="md:hidden border-t border-amber-200/90 bg-[#fffdfa] px-4 pt-3 pb-6 space-y-3">
           {currentUser && (
-            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center justify-between gap-3">
+            <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-2xl flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
                 <button
                   type="button"
@@ -440,17 +444,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
                   <img
                     src={userProfile?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.uid}`}
                     alt="avatar"
-                    className="w-10 h-10 rounded-xl object-cover border border-white shadow-2xs"
+                    className="w-10 h-10 rounded-xl object-cover border border-amber-200 shadow-2xs"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white transition-opacity">
                     <Camera className="w-3.5 h-3.5" />
                   </div>
                 </button>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 truncate">
+                  <p className="text-xs font-bold text-stone-900 truncate">
                     {userProfile?.displayName || 'User'}
                   </p>
-                  <p className="text-[10px] text-slate-500 truncate">{currentUser.email}</p>
+                  <p className="text-[10px] text-stone-500 truncate">{currentUser.email}</p>
                 </div>
               </div>
 
@@ -461,7 +465,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
                     setMobileMenuOpen(false);
                     openViewer();
                   }}
-                  className="px-2 py-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center gap-1"
+                  className="px-2 py-1 text-[11px] font-bold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-1 cursor-pointer"
                 >
                   <Eye className="w-3 h-3" /> See
                 </button>
@@ -471,7 +475,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
                     setMobileMenuOpen(false);
                     triggerFilePicker();
                   }}
-                  className="px-2 py-1 text-[11px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg flex items-center gap-1"
+                  className="px-2 py-1 text-[11px] font-bold text-stone-700 bg-white border border-amber-200 rounded-lg flex items-center gap-1 cursor-pointer"
                 >
                   <Camera className="w-3 h-3" /> Change
                 </button>
@@ -483,7 +487,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
             {isNavVisible('home') && (
               <button
                 onClick={() => handleNav('home')}
-                className="flex-1 min-w-[120px] px-3 py-2.5 text-sm font-semibold rounded-xl bg-slate-50 text-slate-800 text-center"
+                className="flex-1 min-w-[120px] px-3 py-2.5 text-sm font-bold rounded-xl bg-amber-50/70 border border-amber-200/60 text-stone-800 text-center cursor-pointer"
               >
                 Home
               </button>
@@ -491,7 +495,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
             {isNavVisible('listings') && isFeatureVisible('search') && (
               <button
                 onClick={() => handleNav('listings')}
-                className="flex-1 min-w-[120px] px-3 py-2.5 text-sm font-semibold rounded-xl bg-slate-50 text-slate-800 text-center"
+                className="flex-1 min-w-[120px] px-3 py-2.5 text-sm font-bold rounded-xl bg-amber-50/70 border border-amber-200/60 text-stone-800 text-center cursor-pointer"
               >
                 Browse Rooms
               </button>
@@ -499,7 +503,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
             {isNavVisible('chowks') && isFeatureVisible('chowks') && (
               <button
                 onClick={() => handleNav('chowks')}
-                className="flex-1 min-w-[120px] px-3 py-2.5 text-sm font-semibold rounded-xl bg-slate-50 text-slate-800 text-center"
+                className="flex-1 min-w-[120px] px-3 py-2.5 text-sm font-bold rounded-xl bg-amber-50/70 border border-amber-200/60 text-stone-800 text-center cursor-pointer"
               >
                 Janakpur Chowks
               </button>
@@ -508,9 +512,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
               <button
                 id="mobile-nav-premium-btn"
                 onClick={() => handleNav('premium')}
-                className="flex-1 min-w-[120px] px-3 py-2.5 text-sm font-semibold rounded-xl bg-amber-50 text-amber-900 text-center flex items-center justify-center gap-1"
+                className="flex-1 min-w-[120px] px-3 py-2.5 text-sm font-bold rounded-xl bg-amber-200/80 border border-amber-300 text-amber-950 text-center flex items-center justify-center gap-1 cursor-pointer"
               >
-                <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <Crown className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
                 Premium (Rs {premiumConfig.priceNPR || 200})
               </button>
             )}

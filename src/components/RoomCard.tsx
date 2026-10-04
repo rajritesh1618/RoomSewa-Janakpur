@@ -79,10 +79,13 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
     <div
       id={`room-card-${room.id}`}
       onClick={() => onSelect(room)}
-      className="group bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 overflow-hidden flex flex-col cursor-pointer"
+      className="group bg-white rounded-2xl border border-amber-200/90 mithila-card-shadow mithila-card-hover transition-all duration-200 overflow-hidden flex flex-col cursor-pointer relative"
     >
+      {/* Decorative Mithila Top Accent Line */}
+      <div className="h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 w-full shrink-0" />
+
       {/* Top Image Preview & Badges */}
-      <div className="relative aspect-16/10 bg-slate-100 overflow-hidden">
+      <div className="relative aspect-16/10 bg-amber-50/50 overflow-hidden">
         <img
           src={photos[activePhotoIdx]}
           alt={room.title}
@@ -102,8 +105,8 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
             <span
               className={`px-2.5 py-1 text-xs font-bold rounded-lg uppercase tracking-wider backdrop-blur-md shadow-xs ${
                 isRented
-                  ? 'bg-rose-600/90 text-white'
-                  : 'bg-emerald-600/90 text-white'
+                  ? 'bg-rose-700/95 text-white'
+                  : 'bg-emerald-700/95 text-white'
               }`}
             >
               {isRented ? 'Rented' : 'Available'}
@@ -111,14 +114,14 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
 
             {/* Premium Gold Badge */}
             {room.isOwnerPremium && isFeatureVisible('premium') && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-500/95 text-slate-950 backdrop-blur-md shadow-xs">
-                <Crown className="w-3 h-3 fill-slate-950" />
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-extrabold rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 backdrop-blur-md shadow-xs border border-amber-300">
+                <Crown className="w-3 h-3 fill-stone-950" />
                 Verified Gold
               </span>
             )}
 
             {room.isFeatured && (!room.isOwnerPremium || !isFeatureVisible('premium')) && (
-              <span className="px-2 py-1 text-[11px] font-bold rounded-lg bg-indigo-600/90 text-white backdrop-blur-md">
+              <span className="px-2 py-1 text-[11px] font-bold rounded-lg bg-orange-600/95 text-white backdrop-blur-md shadow-xs">
                 Featured
               </span>
             )}
@@ -130,11 +133,11 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
               id={`save-btn-${room.id}`}
               onClick={handleSave}
               title={isSaved ? 'Remove from saved' : 'Save room'}
-              className="pointer-events-auto w-9 h-9 rounded-xl bg-white/90 hover:bg-white text-slate-700 hover:text-rose-600 shadow-md flex items-center justify-center transition-transform active:scale-90"
+              className="pointer-events-auto w-9 h-9 rounded-xl bg-white/95 hover:bg-white text-stone-700 hover:text-rose-600 shadow-md flex items-center justify-center transition-transform active:scale-90 cursor-pointer"
             >
               <Heart
                 className={`w-4 h-4 transition-colors ${
-                  isSaved ? 'fill-rose-500 text-rose-500' : 'text-slate-700'
+                  isSaved ? 'fill-rose-600 text-rose-600' : 'text-stone-700'
                 }`}
               />
             </button>
@@ -143,11 +146,11 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
 
         {/* Bottom image stats */}
         <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-white text-xs font-medium pointer-events-none">
-          <span className="px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-xs">
+          <span className="px-2 py-0.5 rounded-md bg-black/45 backdrop-blur-xs font-semibold">
             {room.roomType} • {room.floor}
           </span>
           {photos.length > 1 && (
-            <span className="px-1.5 py-0.5 rounded-md bg-black/40 backdrop-blur-xs text-[11px]">
+            <span className="px-1.5 py-0.5 rounded-md bg-black/45 backdrop-blur-xs text-[11px]">
               {photos.length} photos
             </span>
           )}
@@ -158,38 +161,38 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
       <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
         <div>
           {/* Chowk location */}
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mb-1.5">
-            <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900/80 mb-1.5">
+            <MapPin className="w-3.5 h-3.5 text-rose-600 shrink-0" />
             <span className="truncate">{room.chowk}</span>
             {room.wardNumber && (
-              <span className="text-slate-400 font-normal">({room.wardNumber})</span>
+              <span className="text-stone-400 font-normal">({room.wardNumber})</span>
             )}
           </div>
 
           {/* Title */}
-          <h3 className="font-heading text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1 mb-2">
+          <h3 className="font-heading text-base font-bold text-stone-900 group-hover:text-orange-700 transition-colors line-clamp-1 mb-2">
             {room.title}
           </h3>
 
           {/* Key Facilities Badges */}
           <div className="flex flex-wrap items-center gap-1.5 mb-4">
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-sky-50 text-sky-800 border border-sky-100">
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-sky-50 text-sky-800 border border-sky-200/80">
               <Droplets className="w-3 h-3 text-sky-600" />
               {room.waterFacility}
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-amber-50 text-amber-800 border border-amber-100">
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-amber-50 text-amber-900 border border-amber-200/80">
               <Zap className="w-3 h-3 text-amber-600" />
               {room.electricityFacility}
             </span>
             {room.wifiAvailable && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-emerald-50 text-emerald-800 border border-emerald-100">
+              <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/80">
                 <Wifi className="w-3 h-3 text-emerald-600" />
                 Wi-Fi
               </span>
             )}
             {room.studentsAllowed && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-indigo-50 text-indigo-800 border border-indigo-100">
-                <GraduationCap className="w-3 h-3 text-indigo-600" />
+              <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-orange-50 text-orange-900 border border-orange-200/80">
+                <GraduationCap className="w-3 h-3 text-orange-600" />
                 Students OK
               </span>
             )}
@@ -197,14 +200,14 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
         </div>
 
         {/* Footer: Price, Owner details, & Action Buttons */}
-        <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+        <div className="pt-3 border-t border-amber-100 flex items-center justify-between gap-2">
           <div>
             <div className="flex items-baseline gap-1">
-              <span className="text-xs font-semibold text-slate-500">NPR</span>
-              <span className="text-lg font-black text-slate-900 font-heading">
+              <span className="text-xs font-bold text-amber-900/70">NPR</span>
+              <span className="text-lg font-black text-amber-950 font-heading">
                 Rs {room.rentPerMonth.toLocaleString()}
               </span>
-              <span className="text-[11px] font-medium text-slate-400">/mo</span>
+              <span className="text-[11px] font-medium text-stone-400">/mo</span>
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <div
@@ -234,15 +237,15 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
                     `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.ownerId}`
                   }
                   alt={room.ownerName}
-                  className="w-5 h-5 rounded-full object-cover bg-slate-100 border border-slate-200 group-hover:scale-110 transition-transform shadow-2xs"
+                  className="w-5 h-5 rounded-full object-cover bg-amber-50 border border-amber-200 group-hover:scale-110 transition-transform shadow-2xs"
                 />
               </div>
               <p
                 onClick={handleMessageOwner}
-                className="text-[11px] text-slate-500 hover:text-indigo-600 truncate max-w-[125px] cursor-pointer transition-colors"
+                className="text-[11px] text-stone-600 hover:text-orange-700 truncate max-w-[125px] cursor-pointer transition-colors"
                 title="Click to message this owner"
               >
-                <span className="font-semibold underline decoration-slate-300 underline-offset-2 hover:decoration-indigo-500">{room.ownerName || 'Verified Owner'}</span>
+                <span className="font-bold underline decoration-amber-200 underline-offset-2 hover:decoration-orange-500">{room.ownerName || 'Verified Owner'}</span>
               </p>
             </div>
           </div>
@@ -254,7 +257,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
                 onClick={handleMessageOwner}
                 disabled={startingChat}
                 title="Chat directly with room owner"
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl transition-colors shrink-0 shadow-xs"
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600 hover:from-orange-700 hover:to-rose-700 disabled:opacity-50 rounded-xl transition-all shrink-0 shadow-xs cursor-pointer"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>{startingChat ? 'Opening...' : 'Message'}</span>
@@ -267,7 +270,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
                 e.stopPropagation();
                 onSelect(room);
               }}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors shrink-0"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-amber-950 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 rounded-xl transition-colors shrink-0 cursor-pointer"
             >
               Details
             </button>

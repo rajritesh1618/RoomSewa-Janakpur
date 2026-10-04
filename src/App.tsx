@@ -18,6 +18,7 @@ import { RoomDetailModal } from './components/RoomDetailModal';
 import { ProfilePictureProvider } from './context/ProfilePictureContext';
 import { ProfilePictureModals } from './components/profile/ProfilePictureModals';
 import { MandatoryPhoneModal } from './components/profile/MandatoryPhoneModal';
+import { JanakiMandirLogo, MithilaBorderStrip, MithilaLotusIcon } from './components/common/MithilaMotifs';
 import { RoomListing } from './types';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { applyActionCode, verifyPasswordResetCode } from 'firebase/auth';
@@ -426,29 +427,95 @@ function MainAppContent() {
       {/* Mandatory Nepal Mobile Number Modal */}
       <MandatoryPhoneModal />
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-16 py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-lg tracking-tight font-heading text-slate-900">
-                RoomSewa Janakpur
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">
-                जनकपुरधाम
-              </span>
+      {/* Footer - Mithila Heritage & Janaki Mandir Theme */}
+      <footer className="bg-gradient-to-b from-[#22120a] via-[#180c07] to-[#0e0704] text-[#fbf9f5] border-t border-amber-600/30 mt-20 relative overflow-hidden">
+        {/* Decorative Aripan Frieze Border */}
+        <MithilaBorderStrip variant="cream" className="opacity-60" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-10">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+            {/* Col 1: Brand & Mithila Tribute */}
+            <div className="space-y-4 md:col-span-1">
+              <div className="flex items-center gap-3">
+                <JanakiMandirLogo size={48} className="drop-shadow-md" />
+                <div>
+                  <h3 className="font-heading font-black text-xl text-white tracking-tight">
+                    RoomSewa
+                  </h3>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      जनकपुरधाम
+                    </span>
+                    <span className="text-[11px] text-amber-200/70 font-medium">Mithila Rentals</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-amber-100/70 leading-relaxed">
+                Janakpurdham's dedicated direct room & flat rental network. Connecting students, professionals, and families with verified local room owners.
+              </p>
             </div>
-            <p className="text-xs text-slate-500 text-center md:text-right">
-              Direct room and flat rental platform for Janakpur, Nepal. Connecting seekers and verified room owners.
-            </p>
+
+            {/* Col 2: Janakpur Landmarks */}
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-3 flex items-center gap-1.5">
+                <MithilaLotusIcon size={14} color="#f59e0b" />
+                Sacred Landmarks
+              </h4>
+              <ul className="space-y-2 text-xs text-amber-100/70">
+                <li className="hover:text-amber-300 transition-colors">Janaki Mandir (नौ लखा मन्दिर)</li>
+                <li className="hover:text-amber-300 transition-colors">Dhanush Sagar & Ganga Sagar</li>
+                <li className="hover:text-amber-300 transition-colors">Ram Mandir & Vivah Mandap</li>
+                <li className="hover:text-amber-300 transition-colors">Sankat Mochan Temple</li>
+                <li className="hover:text-amber-300 transition-colors">Mithila Art & Craft Center</li>
+              </ul>
+            </div>
+
+            {/* Col 3: Popular Rental Chowks */}
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-3">
+                Popular Chowks
+              </h4>
+              <ul className="space-y-2 text-xs text-amber-100/70">
+                <li>Bhanu Chowk & Station Road</li>
+                <li>Shiva Chowk & Ramanand Chowk</li>
+                <li>Murali Chowk & Hospital Road</li>
+                <li>Pidari Chowk & Zero Mile</li>
+                <li>Mills Area & Janakpur Campus</li>
+              </ul>
+            </div>
+
+            {/* Col 4: Trust & Guarantees */}
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-3">
+                RoomSewa Trust
+              </h4>
+              <ul className="space-y-2 text-xs text-amber-100/70">
+                <li className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  100% Direct Owners (Zero Commission)
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  Verified Nepal Mobile (+977)
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  Verified Gold Badges
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Built specifically for Janakpurdham
+                </li>
+              </ul>
+            </div>
           </div>
-          <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 gap-2">
+
+          <div className="pt-6 border-t border-amber-900/40 flex flex-col sm:flex-row items-center justify-between text-[11px] text-amber-200/50 gap-3">
             <span>© {new Date().getFullYear()} RoomSewa Janakpur. All rights reserved.</span>
-            <div className="flex items-center gap-4 font-medium">
-              <span>Bhanu Chowk</span>
-              <span>Shiva Chowk</span>
-              <span>Ramanand Chowk</span>
-              <span>Murali Chowk</span>
+            <div className="flex items-center gap-3 font-medium">
+              <span>जनकपुरधाम, धनुषा, नेपाल</span>
+              <span>•</span>
+              <span className="text-amber-300">जय जानकी माता</span>
             </div>
           </div>
         </div>

@@ -3,27 +3,53 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: #fbf9f5; /* Warm Mithila sandstone-cream canvas */
+    color: #1c1917;
   }
 
   h1, h2, h3, .font-heading {
     font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
   }
+
+  .font-brand {
+    font-family: 'Cinzel', 'Marcellus', 'Outfit', serif;
+    letter-spacing: -0.01em;
+  }
 }
 
-/* Custom scrollbar styling for high-density listing tables and carousels */
+/* Warm Mithila Heritage Accent Utilities */
+.mithila-gradient-primary {
+  background: linear-gradient(135deg, #d97706 0%, #ea580c 50%, #dc2626 100%);
+}
+
+.mithila-gradient-warm {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fed7aa 100%);
+}
+
+.mithila-gradient-hero {
+  background: radial-gradient(circle at 50% 0%, rgba(251, 146, 60, 0.12) 0%, rgba(254, 243, 199, 0.45) 40%, #fbf9f5 100%);
+}
+
+.mithila-card-shadow {
+  box-shadow: 0 4px 20px -2px rgba(180, 83, 9, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+}
+
+.mithila-card-hover:hover {
+  box-shadow: 0 10px 25px -4px rgba(194, 65, 12, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Custom scrollbar in warm Janakpur amber */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #fbf9f5;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #fcd34d;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #f59e0b;
 }
