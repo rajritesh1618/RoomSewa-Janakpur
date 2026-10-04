@@ -453,7 +453,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     Open your <strong>Gmail inbox</strong> on this device or your mobile app.
                   </li>
                   <li>
-                    Look for an email from <strong>RoomSewa Janakpur</strong> with subject <em>"Verify your email"</em>.
+                    Look for an email from <strong>RoomSewa Janakpur</strong> with subject <em>"Verify your RoomSewa Janakpur account"</em>.
                   </li>
                   <li>
                     If you don't see it immediately, please check your <strong>Spam or Junk folder</strong>.

@@ -351,9 +351,62 @@ function isValidGmailServer(email: string): boolean {
 const GMAIL_VALIDATION_ERROR = 'Please enter a valid Gmail address (example@gmail.com).';
 
 function getAppBaseUrl(req: Request): string {
+  // 1. Explicit production URL from environment
+  if (process.env.PRODUCTION_URL && !process.env.PRODUCTION_URL.includes('ais-dev-')) {
+    return process.env.PRODUCTION_URL.replace(/\/+$/, '');
+  }
+
+  // 2. Client origin passed explicitly in request body
+  const bodyOrigin = req.body?.origin;
+  if (
+    bodyOrigin &&
+    typeof bodyOrigin === 'string' &&
+    bodyOrigin.startsWith('http') &&
+    !bodyOrigin.includes('localhost') &&
+    !bodyOrigin.includes('127.0.0.1') &&
+    !bodyOrigin.includes('ais-dev-')
+  ) {
+    return bodyOrigin.replace(/\/+$/, '');
+  }
+
+  // 3. Client HTTP Origin header
+  const reqOrigin = req.headers['origin'];
+  if (
+    reqOrigin &&
+    typeof reqOrigin === 'string' &&
+    reqOrigin.startsWith('http') &&
+    !reqOrigin.includes('localhost') &&
+    !reqOrigin.includes('127.0.0.1') &&
+    !reqOrigin.includes('ais-dev-')
+  ) {
+    return reqOrigin.replace(/\/+$/, '');
+  }
+
+  // 4. Client HTTP Referer header
+  const reqReferer = req.headers['referer'];
+  if (
+    reqReferer &&
+    typeof reqReferer === 'string' &&
+    reqReferer.startsWith('http') &&
+    !reqReferer.includes('localhost') &&
+    !reqReferer.includes('127.0.0.1') &&
+    !reqReferer.includes('ais-dev-')
+  ) {
+    try {
+      const parsed = new URL(reqReferer);
+      return parsed.origin;
+    } catch {}
+  }
+
+  // 5. If APP_URL is internal ais-dev- URL, convert to public ais-pre- URL to prevent 403 error
+  if (process.env.APP_URL && process.env.APP_URL.includes('ais-dev-')) {
+    return process.env.APP_URL.replace('ais-dev-', 'ais-pre-').replace(/\/+$/, '');
+  }
+
   if (process.env.APP_URL && process.env.APP_URL !== 'MY_APP_URL') {
     return process.env.APP_URL.replace(/\/+$/, '');
   }
+
   const forwardedProto = req.headers['x-forwarded-proto'];
   const proto = typeof forwardedProto === 'string' ? forwardedProto.split(',')[0].trim() : req.protocol;
   const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';

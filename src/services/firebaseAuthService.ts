@@ -62,15 +62,17 @@ export function getSessionAuthCache(email: string): CachedAuthCreds | null {
   return null;
 }
 
+export const PRODUCTION_ROOMSEWA_DOMAIN = 'https://roomsewajnk.netlify.app';
+
 /**
  * Builds ActionCodeSettings with redirect URL back to the RoomSewa app.
- * Works seamlessly on localhost, Netlify deployment (e.g. https://*.netlify.app), or Cloud Run.
+ * Enforces the actual production RoomSewa domain (https://roomsewajnk.netlify.app)
+ * in email verification and password reset links per requirements.
  */
 export function getActionCodeSettings(path = '/'): ActionCodeSettings {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return {
-    url: `${origin}${cleanPath}`,
+    url: `${PRODUCTION_ROOMSEWA_DOMAIN}${cleanPath}`,
     handleCodeInApp: false
   };
 }
@@ -92,7 +94,7 @@ export async function sendEmailVerificationSafe(user: User): Promise<void> {
       err?.message?.includes('UNAUTHORIZED_DOMAIN')
     ) {
       console.warn(
-        `[Firebase Auth] Origin ${window.location.origin} is not yet in Firebase Console Authorized Domains. Sending via standard Firebase handler.`
+        `[Firebase Auth] Domain ${PRODUCTION_ROOMSEWA_DOMAIN} fallback check. Sending via standard Firebase handler.`
       );
       // Fallback: This ALWAYS succeeds on any domain because it uses the project's default firebaseapp.com handler
       await sendEmailVerification(user);
@@ -117,7 +119,7 @@ export async function sendPasswordResetEmailSafe(email: string): Promise<void> {
       err?.message?.includes('UNAUTHORIZED_DOMAIN')
     ) {
       console.warn(
-        `[Firebase Auth] Origin ${window.location.origin} is not yet in Firebase Console Authorized Domains. Sending via standard Firebase reset handler.`
+        `[Firebase Auth] Domain ${PRODUCTION_ROOMSEWA_DOMAIN} fallback check. Sending via standard Firebase reset handler.`
       );
       await sendPasswordResetEmail(auth, email);
     } else {
