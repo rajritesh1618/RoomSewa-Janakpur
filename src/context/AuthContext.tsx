@@ -170,7 +170,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithEmail = async (email: string, pass: string) => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!isValidGmail(trimmedEmail)) {
-      throw new Error(GMAIL_ERROR_MESSAGE);
+      const err: any = new Error('Please enter a valid email address.');
+      err.code = 'auth/invalid-email';
+      throw err;
     }
 
     // Authenticate with Firebase Auth and enforce verified email gate
@@ -205,7 +207,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<AuthSuccessResult> => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!isValidGmail(trimmedEmail)) {
-      throw new Error(GMAIL_ERROR_MESSAGE);
+      const err: any = new Error('Please enter a valid email address.');
+      err.code = 'auth/invalid-email';
+      throw err;
     }
 
     // Creates user via Firebase Auth, sends official Firebase verification email, and signs user out

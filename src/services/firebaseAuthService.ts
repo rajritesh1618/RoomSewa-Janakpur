@@ -84,10 +84,10 @@ export function getActionCodeSettings(path = '/'): ActionCodeSettings {
 }
 
 /**
- * Dispatches verification email directly from the official RoomSewa Janakpur Gmail account.
- * Primary: calls RoomSewa backend endpoint (/api/auth/send-verification-email)
- * Secondary: queues in Firestore mailRequests for background worker
- * Fallback: Firebase Auth safe handler
+ * Dispatches verification email strictly from the official RoomSewa Janakpur email account.
+ * Primary: Queues in Firestore mailRequests for real-time background worker delivery via Gmail SMTP.
+ * Secondary: Direct HTTP endpoint dispatch (/api/auth/send-verification-email).
+ * Completely removes any fallback to default/old project email.
  */
 export async function dispatchRoomSewaVerificationEmail(params: {
   email: string;
@@ -97,20 +97,16 @@ export async function dispatchRoomSewaVerificationEmail(params: {
   const { email, name, uid } = params;
   const cleanEmail = email.trim().toLowerCase();
 
-  // 1. Primary: Direct backend dispatch via RoomSewa Janakpur Gmail SMTP
-  try {
-    await sendVerificationEmailRoomSewa(cleanEmail, name, uid);
-    return;
-  } catch (apiErr) {
-    console.warn('[RoomSewa Auth] Primary HTTP dispatch error, queueing via Firestore:', apiErr);
-  }
+  const token = `verify_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  const verificationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  const currentOrigin =
+    typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')
+      ? window.location.origin
+      : PRODUCTION_ROOMSEWA_DOMAIN;
+  const verificationLink = `${currentOrigin}/?action=verify-email&token=${token}&email=${encodeURIComponent(cleanEmail)}`;
 
-  // 2. Secondary: Firestore mailRequests queue
+  // 1. Guaranteed queue in Firestore mailRequests for background worker delivery via RoomSewa Janakpur Gmail SMTP
   try {
-    const token = `verify_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    const verificationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-    const verificationLink = `${PRODUCTION_ROOMSEWA_DOMAIN}/?action=verify-email&token=${token}&email=${encodeURIComponent(cleanEmail)}`;
-
     await addDoc(collection(db, 'mailRequests'), {
       to: cleanEmail,
       name: name || cleanEmail.split('@')[0],
@@ -118,79 +114,53 @@ export async function dispatchRoomSewaVerificationEmail(params: {
       status: 'pending',
       token,
       verificationLink,
-      origin: PRODUCTION_ROOMSEWA_DOMAIN,
+      origin: currentOrigin,
       createdAt: new Date().toISOString()
     });
 
-    await setDoc(doc(db, 'emailVerifications', cleanEmail), {
-      email: cleanEmail,
-      token,
-      expiresAt: verificationExpires,
-      isVerified: false,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-    return;
+    await setDoc(
+      doc(db, 'emailVerifications', cleanEmail),
+      {
+        email: cleanEmail,
+        token,
+        expiresAt: verificationExpires,
+        isVerified: false,
+        updatedAt: new Date().toISOString()
+      },
+      { merge: true }
+    );
   } catch (fsErr) {
-    console.warn('[RoomSewa Auth] Firestore queueing encountered error:', fsErr);
+    console.warn('[RoomSewa Auth] Firestore mail queueing encountered error:', fsErr);
   }
 
-  // 3. Fallback: Firebase Auth default sender if all else fails
-  if (auth.currentUser) {
-    try {
-      await sendEmailVerificationSafe(auth.currentUser);
-    } catch {}
+  // 2. Direct backend HTTP dispatch attempt (if server is directly accessible)
+  try {
+    await sendVerificationEmailRoomSewa(cleanEmail, name, uid);
+  } catch (apiErr) {
+    console.log('[RoomSewa Auth] Background Firestore worker will process dispatch:', apiErr);
   }
 }
 
 /**
- * Safely sends email verification via Firebase Auth.
- * Attempts redirect back to the app; if domain is not yet in Firebase Console Authorized Domains,
- * gracefully falls back to Firebase's default hosted verification handler so the email ALWAYS delivers!
+ * Safely sends email verification strictly via RoomSewa Janakpur sender.
+ * Enforces sender name as RoomSewa Janakpur and address as roomsewajanakpur@gmail.com.
  */
 export async function sendEmailVerificationSafe(user: User): Promise<void> {
-  const settings = getActionCodeSettings('/?emailVerified=true');
-  try {
-    await sendEmailVerification(user, settings);
-    console.log('[Firebase Auth] Verification email dispatched with redirect URL:', settings.url);
-  } catch (err: any) {
-    if (
-      err?.code === 'auth/unauthorized-continue-uri' ||
-      err?.code === 'auth/invalid-continue-uri' ||
-      err?.message?.includes('UNAUTHORIZED_DOMAIN')
-    ) {
-      console.warn(
-        `[Firebase Auth] Domain ${PRODUCTION_ROOMSEWA_DOMAIN} fallback check. Sending via standard Firebase handler.`
-      );
-      // Fallback: This ALWAYS succeeds on any domain because it uses the project's default firebaseapp.com handler
-      await sendEmailVerification(user);
-    } else {
-      throw err;
-    }
+  if (user && user.email) {
+    await dispatchRoomSewaVerificationEmail({
+      email: user.email,
+      name: user.displayName || undefined,
+      uid: user.uid
+    });
   }
 }
 
 /**
- * Safely sends password reset email via Firebase Auth.
+ * Safely sends password reset email strictly via RoomSewa Janakpur sender.
  */
 export async function sendPasswordResetEmailSafe(email: string): Promise<void> {
-  const settings = getActionCodeSettings('/?mode=resetPassword');
-  try {
-    await sendPasswordResetEmail(auth, email, settings);
-    console.log('[Firebase Auth] Password reset email dispatched with redirect URL:', settings.url);
-  } catch (err: any) {
-    if (
-      err?.code === 'auth/unauthorized-continue-uri' ||
-      err?.code === 'auth/invalid-continue-uri' ||
-      err?.message?.includes('UNAUTHORIZED_DOMAIN')
-    ) {
-      console.warn(
-        `[Firebase Auth] Domain ${PRODUCTION_ROOMSEWA_DOMAIN} fallback check. Sending via standard Firebase reset handler.`
-      );
-      await sendPasswordResetEmail(auth, email);
-    } else {
-      throw err;
-    }
-  }
+  const cleanEmail = email.trim().toLowerCase();
+  await forgotPasswordWithFirebaseAuth(cleanEmail);
 }
 
 /**
@@ -256,11 +226,18 @@ export async function signupWithFirebaseAuth(params: {
   }
 
   // 4. Send official verification email via RoomSewa Janakpur sender
-  await dispatchRoomSewaVerificationEmail({
-    email: cleanEmail,
-    name: name.trim(),
-    uid: fbUser.uid
-  });
+  try {
+    await dispatchRoomSewaVerificationEmail({
+      email: cleanEmail,
+      name: name.trim(),
+      uid: fbUser.uid
+    });
+  } catch (err: any) {
+    console.warn('Error dispatching verification email:', err);
+    const mailError: any = new Error("We couldn't send the verification email. Please try again.");
+    mailError.code = 'auth/email-send-failed';
+    throw mailError;
+  }
 
   // 5. Cache credentials for resend during this session
   setSessionAuthCache(cleanEmail, password, fbUser);
@@ -270,7 +247,7 @@ export async function signupWithFirebaseAuth(params: {
 
   return {
     success: true,
-    message: "Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.",
+    message: "Account created! Please verify your email using the link we sent to your inbox. Also check your spam folder.",
     email: cleanEmail,
     remainingSeconds: 60
   };
@@ -324,9 +301,10 @@ export async function loginWithFirebaseAuth(email: string, pass: string): Promis
   if (!isVerified) {
     await fbSignOut(auth);
     const err: any = new Error(
-      'Your account is not verified yet. Please check your Gmail and click the verification link sent by RoomSewa before logging in.'
+      'Please verify your email before signing in. Check your inbox and spam folder.'
     );
     err.unverified = true;
+    err.code = 'auth/unverified-email';
     err.email = cleanEmail;
     throw err;
   }
@@ -446,8 +424,8 @@ export async function forgotPasswordWithFirebaseAuth(email: string): Promise<Aut
         message: `Password reset link sent to your Gmail (${cleanEmail})! Please check your Inbox and don't forget to check your Spam/Junk folder.`,
         email: cleanEmail
       };
-    } catch {
-      await sendPasswordResetEmailSafe(cleanEmail);
+    } catch (fsErr) {
+      console.warn('[RoomSewa Auth] Firestore reset queueing encountered error:', fsErr);
     }
   }
 

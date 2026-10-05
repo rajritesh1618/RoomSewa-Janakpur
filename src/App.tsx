@@ -78,7 +78,7 @@ function MainAppContent() {
           if (err?.code === 'auth/invalid-action-code') {
             setAuthSuccessMessage('Notice: This verification link has expired or has already been used. If your account is verified, you can sign in directly.');
           } else {
-            setAuthSuccessMessage('Notice: ' + (err?.message || 'Verification link could not be verified. Please request a new verification email.'));
+            setAuthSuccessMessage('Notice: Verification link could not be verified. Please request a new verification email.');
           }
           setAuthModalOpen(true);
         });
@@ -123,7 +123,7 @@ function MainAppContent() {
         .catch((err) => {
           setAuthEmail(emailParam);
           setAuthModalMode('login');
-          setAuthSuccessMessage(err.message || 'Verification could not be completed.');
+          setAuthSuccessMessage('Notice: This verification link has expired or is invalid. Please request a new verification email.');
           setAuthModalOpen(true);
         });
     } else if (action === 'reset-password' && token && emailParam) {

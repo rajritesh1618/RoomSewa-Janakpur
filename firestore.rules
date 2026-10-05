@@ -11,15 +11,15 @@ service cloud.firestore {
       return isAuthenticated() &&
         'email' in request.auth.token &&
         (
-          request.auth.token.email.matches('(?i)^rajritesh1618@gmail\\.com$') ||
+          request.auth.token.email.matches('(?i)^roomsewajanakpur@gmail\\.com$') ||
+          request.auth.token.email.matches('(?i)^roomsewajnk@gmail\\.com$') ||
           request.auth.token.email.matches('(?i)^admin@.*') ||
-          request.auth.token.email == 'rajritesh1618@gmail.com' ||
-          request.auth.token.email == 'Rajritesh1618@gmail.com' ||
+          request.auth.token.email == 'roomsewajanakpur@gmail.com' ||
+          request.auth.token.email == 'roomsewajnk@gmail.com' ||
           request.auth.token.email == 'admin@roomsewa.com' ||
           request.auth.token.email == 'Admin@roomsewa.com' ||
           request.auth.token.email == 'admin@janakpurrooms.com' ||
           request.auth.token.email == 'Admin@janakpurrooms.com' ||
-          request.auth.token.email.matches('^[rR][aA][jJ][rR][iI][tT][eE][sS][hH]1618@gmail\\.com$') ||
           request.auth.token.email.matches('^[aA][dD][mM][iI][nN]@(roomsewa\\.com|janakpurrooms\\.com)$')
         );
     }

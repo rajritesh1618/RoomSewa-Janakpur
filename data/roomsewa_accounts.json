@@ -46,5 +46,37 @@
     "createdAt": "2026-10-03T08:49:19.942Z",
     "updatedAt": "2026-10-03T08:49:39.177Z",
     "lastVerificationSentAt": "2026-10-03T08:49:19.944Z"
+  },
+  {
+    "uid": "usr_1791193083300",
+    "email": "test_verify_check@gmail.com",
+    "displayName": "Test User",
+    "phoneNumber": "",
+    "role": "seeker",
+    "isPremium": false,
+    "salt": "",
+    "passwordHash": "",
+    "isVerified": false,
+    "verificationToken": "verify_1791193083300_3797e03a4bf4b6b6795672f7eae4fe7e8146504e",
+    "verificationExpires": "2026-10-07T09:38:03.300Z",
+    "lastVerificationSentAt": "2026-10-05T09:38:03.300Z",
+    "createdAt": "2026-10-05T09:38:03.300Z",
+    "updatedAt": "2026-10-05T09:38:03.300Z"
+  },
+  {
+    "uid": "usr_1791193338951",
+    "email": "roomsewajanakpur@gmail.com",
+    "displayName": "RoomSewa Verification Test",
+    "phoneNumber": "",
+    "role": "seeker",
+    "isPremium": false,
+    "salt": "",
+    "passwordHash": "",
+    "isVerified": false,
+    "verificationToken": "verify_1791193338951_3012e0e58f82c84a47a7d854a21c3c16d81fdd5d",
+    "verificationExpires": "2026-10-07T09:42:18.951Z",
+    "lastVerificationSentAt": "2026-10-05T09:42:18.951Z",
+    "createdAt": "2026-10-05T09:42:18.951Z",
+    "updatedAt": "2026-10-05T09:42:18.951Z"
   }
 ]

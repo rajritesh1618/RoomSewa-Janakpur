@@ -606,7 +606,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
 
 // POST /api/auth/verify-email
 // Verifies user account after they click the verification link from their Gmail
-app.post('/api/auth/verify-email', (req: Request, res: Response) => {
+app.post('/api/auth/verify-email', async (req: Request, res: Response) => {
   try {
     const { token, email } = req.body || {};
 
@@ -1052,57 +1052,84 @@ app.post('/api/auth/resend-verification', async (req: Request, res: Response) =>
 });
 
 // Real-time Firestore mail listener for outgoing mail requests (fail-safe background worker)
+async function processMailDoc(docId: string, data: any) {
+  if (!data || !data.to || data.status === 'sent') return;
+  
+  // Guard against concurrent processing
+  const isStalled = data.status === 'processing' && data.createdAt && (Date.now() - new Date(data.createdAt).getTime() > 45000);
+  if (data.status !== 'pending' && !isStalled) return;
+
+  console.log(`[MailWorker:Firestore] Processing mail request ${docId} for ${data.to} (${data.type || 'verification'})...`);
+  try {
+    await updateDoc(doc(firestoreDb, 'mailRequests', docId), { status: 'processing', processingStartedAt: new Date().toISOString() });
+
+    if (data.type === 'verification') {
+      const token = data.token || generateSecureToken('verify');
+      const baseUrl = data.origin && !data.origin.includes('localhost') ? data.origin.replace(/\/+$/, '') : PRODUCTION_ROOMSEWA_URL;
+      const verificationLink = data.verificationLink || `${baseUrl}/?action=verify-email&token=${token}&email=${encodeURIComponent(data.to)}`;
+
+      const sendRes = await sendVerificationEmail({
+        to: data.to,
+        name: data.name || 'User',
+        verificationLink
+      });
+
+      await updateDoc(doc(firestoreDb, 'mailRequests', docId), {
+        status: 'sent',
+        messageId: sendRes.messageId,
+        sentAt: new Date().toISOString()
+      });
+      console.log(`[MailWorker:Firestore] Verification email successfully sent from RoomSewa Janakpur to ${data.to}`);
+    } else if (data.type === 'password_reset') {
+      const sendRes = await sendPasswordResetEmail({
+        to: data.to,
+        resetLink: data.resetLink
+      });
+      await updateDoc(doc(firestoreDb, 'mailRequests', docId), {
+        status: 'sent',
+        messageId: sendRes.messageId,
+        sentAt: new Date().toISOString()
+      });
+      console.log(`[MailWorker:Firestore] Password reset email successfully sent from RoomSewa Janakpur to ${data.to}`);
+    } else {
+      // Unknown or probe type, mark handled
+      await updateDoc(doc(firestoreDb, 'mailRequests', docId), {
+        status: 'completed',
+        updatedAt: new Date().toISOString()
+      });
+    }
+  } catch (err: any) {
+    console.error(`[MailWorker:Firestore] Error sending email for ${docId}:`, err);
+    await updateDoc(doc(firestoreDb, 'mailRequests', docId), {
+      status: 'error',
+      errorMessage: err?.message || 'Delivery failed',
+      failedAt: new Date().toISOString()
+    }).catch(() => {});
+  }
+}
+
 function initFirestoreMailListener() {
   try {
     const mailCol = collection(firestoreDb, 'mailRequests');
+
+    // Startup scan for pending requests
+    getDocs(mailCol).then((snapshot) => {
+      for (const d of snapshot.docs) {
+        const data = d.data();
+        if (data && (data.status === 'pending' || (data.status === 'processing' && !data.sentAt))) {
+          processMailDoc(d.id, data).catch(() => {});
+        }
+      }
+    }).catch((err) => {
+      console.warn('[MailWorker:Firestore] Startup scan error:', err?.message);
+    });
+
     onSnapshot(mailCol, async (snapshot) => {
       for (const change of snapshot.docChanges()) {
         if (change.type === 'added' || change.type === 'modified') {
           const data = change.doc.data();
-          if (data && data.status === 'pending' && data.to) {
-            const docId = change.doc.id;
-            console.log(`[MailWorker:Firestore] Processing mail request ${docId} for ${data.to}...`);
-            try {
-              // Immediately flag processing so it is not processed twice
-              await updateDoc(doc(firestoreDb, 'mailRequests', docId), { status: 'processing' });
-
-              if (data.type === 'verification') {
-                const token = data.token || generateSecureToken('verify');
-                const baseUrl = data.origin && !data.origin.includes('localhost') ? data.origin.replace(/\/+$/, '') : PRODUCTION_ROOMSEWA_URL;
-                const verificationLink = data.verificationLink || `${baseUrl}/?action=verify-email&token=${token}&email=${encodeURIComponent(data.to)}`;
-
-                const sendRes = await sendVerificationEmail({
-                  to: data.to,
-                  name: data.name || 'User',
-                  verificationLink
-                });
-
-                await updateDoc(doc(firestoreDb, 'mailRequests', docId), {
-                  status: 'sent',
-                  messageId: sendRes.messageId,
-                  sentAt: new Date().toISOString()
-                });
-                console.log(`[MailWorker:Firestore] Verification email successfully sent to ${data.to}`);
-              } else if (data.type === 'password_reset') {
-                const sendRes = await sendPasswordResetEmail({
-                  to: data.to,
-                  resetLink: data.resetLink
-                });
-                await updateDoc(doc(firestoreDb, 'mailRequests', docId), {
-                  status: 'sent',
-                  messageId: sendRes.messageId,
-                  sentAt: new Date().toISOString()
-                });
-                console.log(`[MailWorker:Firestore] Password reset email successfully sent to ${data.to}`);
-              }
-            } catch (err: any) {
-              console.error(`[MailWorker:Firestore] Error sending email for ${docId}:`, err);
-              await updateDoc(doc(firestoreDb, 'mailRequests', docId), {
-                status: 'error',
-                errorMessage: err?.message || 'Delivery failed',
-                failedAt: new Date().toISOString()
-              }).catch(() => {});
-            }
+          if (data && (data.status === 'pending' || (data.status === 'processing' && !data.sentAt))) {
+            processMailDoc(change.doc.id, data).catch(() => {});
           }
         }
       }

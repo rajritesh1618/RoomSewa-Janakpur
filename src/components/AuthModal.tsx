@@ -24,6 +24,7 @@ import {
   NEPAL_PHONE_ERROR_MESSAGE
 } from '../utils/nepalPhone';
 import { isValidGmail, GMAIL_ERROR_MESSAGE } from '../utils/emailValidator';
+import { getAuthErrorMessage } from '../utils/authErrorMapper';
 import { NepalPhoneInput } from './common/NepalPhoneInput';
 import { resetPasswordWithFirebaseAuth } from '../services/firebaseAuthService';
 import { JanakiMandirLogo, MithilaBorderStrip } from './common/MithilaMotifs';
@@ -173,12 +174,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       const res = await resendVerificationEmail(targetEmail, password);
       setResendCooldown(res.remainingSeconds !== undefined ? res.remainingSeconds : 60);
-      setSuccessMsg("Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.");
+      setSuccessMsg("Account created! Please verify your email using the link we sent to your inbox. Also check your spam folder.");
     } catch (err: any) {
       if (err?.remainingSeconds !== undefined) {
         setResendCooldown(err.remainingSeconds);
       }
-      setErrorMsg(err.message || 'Could not resend verification email.');
+      setErrorMsg(getAuthErrorMessage(err, 'signup'));
     } finally {
       setResending(false);
     }
@@ -186,14 +187,62 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return; // Prevent multiple form submissions while processing
+
     setErrorMsg('');
     setSuccessMsg('');
     setPhoneTouched(true);
     setEmailTouched(true);
 
-    if (!isEmailValid) {
-      setErrorMsg(GMAIL_ERROR_MESSAGE);
-      return;
+    // Context-aware validation with exact user-friendly error messages
+    if (mode === 'login') {
+      if (!email.trim() || !password) {
+        setErrorMsg('Please enter your email and password.');
+        return;
+      }
+      if (!isEmailValid) {
+        setErrorMsg('Please enter a valid email address.');
+        return;
+      }
+    } else if (mode === 'signup') {
+      if (!name.trim() || !phoneDigits || !email.trim() || !password) {
+        setErrorMsg('Please fill in all required fields.');
+        return;
+      }
+      if (!isEmailValid) {
+        setErrorMsg('Please enter a valid email address.');
+        return;
+      }
+      if (password.length < 6) {
+        setErrorMsg('Password is too weak. Please use a stronger password.');
+        return;
+      }
+      if (!isPhoneValid) {
+        setErrorMsg(NEPAL_PHONE_ERROR_MESSAGE);
+        return;
+      }
+    } else if (mode === 'forgot-password') {
+      if (!email.trim()) {
+        setErrorMsg('Please enter your email and password.');
+        return;
+      }
+      if (!isEmailValid) {
+        setErrorMsg('Please enter a valid email address.');
+        return;
+      }
+    } else if (mode === 'reset-password') {
+      if (!newPassword || !confirmPassword) {
+        setErrorMsg('Please fill in all required fields.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setErrorMsg('Passwords do not match.');
+        return;
+      }
+      if (newPassword.length < 6) {
+        setErrorMsg('Password is too weak. Please use a stronger password.');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -202,6 +251,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (mode === 'login') {
         // Attempt login with verified Gmail account
         await loginWithEmail(email.trim(), password);
+        setErrorMsg('');
         onClose();
         if (isSuperAdminEmail(email) || isSuperAdminEmail(auth.currentUser?.email)) {
           onAdminLoginSuccess?.();
@@ -209,22 +259,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       } else if (mode === 'signup') {
         // First-Time Signup:
         // Delivers real verification email via Firebase Auth, account remains unverified, user is NOT logged in
-        if (!name.trim()) {
-          setErrorMsg('Please enter your full name');
-          setSubmitting(false);
-          return;
-        }
-        if (!phoneDigits) {
-          setErrorMsg('Mobile number is mandatory. ' + NEPAL_PHONE_ERROR_MESSAGE);
-          setSubmitting(false);
-          return;
-        }
-        if (!isPhoneValid) {
-          setErrorMsg(NEPAL_PHONE_ERROR_MESSAGE);
-          setSubmitting(false);
-          return;
-        }
-
         const fullNepalPhone = formatFullNepalMobile(phoneDigits);
         const signupRes = await signupWithEmail(
           email.trim(),
@@ -237,28 +271,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setUnverifiedEmail(email.trim());
         setResendCooldown(signupRes.remainingSeconds || 60);
         setMode('verification-sent');
-        setSuccessMsg("Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.");
+        setErrorMsg('');
+        setSuccessMsg(signupRes.message || "Account created! Please verify your email using the link we sent to your inbox. Also check your spam folder.");
       } else if (mode === 'forgot-password') {
         // Forgot Password:
-        // Send password reset link to user's registered Gmail via Firebase Auth
         const res = await forgotPassword(email.trim());
         setMode('forgot-sent');
+        setErrorMsg('');
         setSuccessMsg(res.message);
       } else if (mode === 'reset-password') {
-        // New Password + Confirm Password page:
-        // Both passwords must match before allowing the password to be changed
-        if (newPassword !== confirmPassword) {
-          setErrorMsg('Both passwords must match before allowing the password to be changed.');
-          setSubmitting(false);
-          return;
-        }
-        if (newPassword.length < 6) {
-          setErrorMsg('Password should be at least 6 characters long.');
-          setSubmitting(false);
-          return;
-        }
-
         const res = await resetPasswordWithFirebaseAuth(resetToken, newPassword);
+        setErrorMsg('');
         setSuccessMsg(res.message);
         setPassword('');
         setNewPassword('');
@@ -269,7 +292,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (err?.unverified) {
         setUnverifiedEmail(err.email || email.trim());
       }
-      setErrorMsg(err.message || 'Authentication operation could not be completed.');
+      // Convert raw error codes into friendly user messages
+      setErrorMsg(getAuthErrorMessage(err, mode));
     } finally {
       setSubmitting(false);
     }
@@ -294,7 +318,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       } else if (err.code === 'auth/unauthorized-domain') {
         setErrorMsg('This web domain is not authorized in Firebase Auth. Open the app directly via its standalone URL to sign in.');
       } else {
-        setErrorMsg(err.message || 'Google sign-in could not be completed.');
+        setErrorMsg(getAuthErrorMessage(err, 'login'));
       }
     } finally {
       setSubmitting(false);
@@ -631,7 +655,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <input
                         type="text"
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        onChange={(e) => {
+                          setName(e.target.value);
+                          if (errorMsg) setErrorMsg('');
+                        }}
                         placeholder="e.g. Roshan Yadav"
                         required
                         className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:border-indigo-600 outline-none"
@@ -643,6 +670,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={phoneDigits}
                     onChange={(_full, localDigits) => {
                       setPhoneDigits(localDigits);
+                      if (errorMsg) setErrorMsg('');
                       if (!phoneTouched && localDigits.length > 0) {
                         setPhoneTouched(true);
                       }
@@ -650,7 +678,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     label="Mobile Number"
                     required
                     id="signup-mobile-input"
-                    error={showPhoneError ? NEPAL_PHONE_ERROR_MESSAGE : null}
+                    error={showPhoneError && !errorMsg ? NEPAL_PHONE_ERROR_MESSAGE : null}
                     helperText="Must be exactly 10 digits starting with 98 or 97 (e.g. +977 98XXXXXXXX or +977 97XXXXXXXX)."
                   />
                 </>
@@ -682,6 +710,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value);
+                        if (errorMsg) setErrorMsg('');
                         if (!emailTouched && e.target.value.length > 0) {
                           setEmailTouched(true);
                         }
@@ -698,7 +727,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       }`}
                     />
                   </div>
-                  {showEmailError && (
+                  {showEmailError && !errorMsg && (
                     <p className="text-rose-600 text-[11px] font-semibold flex items-center gap-1 mt-1.5">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       <span>{GMAIL_ERROR_MESSAGE}</span>
@@ -724,7 +753,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       id="auth-password-input"
                       type="password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (errorMsg) setErrorMsg('');
+                      }}
                       placeholder={mode === 'signup' ? 'At least 6 characters' : 'Enter your password'}
                       required
                       minLength={mode === 'signup' ? 6 : 1}
@@ -751,7 +783,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <input
                         type="password"
                         value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          if (errorMsg) setErrorMsg('');
+                        }}
                         placeholder="At least 6 characters"
                         required
                         minLength={6}
@@ -790,7 +825,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <input
                         type="password"
                         value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          if (errorMsg) setErrorMsg('');
+                        }}
                         placeholder="Re-type new password"
                         required
                         minLength={6}
@@ -814,16 +852,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 id="auth-submit-btn"
                 type="submit"
-                disabled={
-                  submitting ||
-                  (mode === 'signup'
-                    ? !isSignupValid
-                    : mode === 'login'
-                    ? !isLoginValid
-                    : mode === 'forgot-password'
-                    ? !isEmailValid
-                    : !isResetValid)
-                }
+                disabled={submitting}
                 className="w-full mt-3 py-3 rounded-xl bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600 hover:from-orange-700 hover:to-rose-700 disabled:from-stone-300 disabled:to-stone-300 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md shadow-orange-600/20 disabled:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {submitting ? (
