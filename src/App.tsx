@@ -55,146 +55,177 @@ function MainAppContent() {
 
   // Handle URL actions: Firebase Auth email verification & password reset action codes
   useEffect(() => {
+    // Read parameters from search query and hash fragment
     const searchParams = new URLSearchParams(window.location.search);
-    const mode = searchParams.get('mode');
-    const oobCode = searchParams.get('oobCode');
-    const action = searchParams.get('action');
-    const token = searchParams.get('token');
-    const emailParam = searchParams.get('email');
-    const emailVerified = searchParams.get('emailVerified');
+    const hashStr = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    const hashParams = new URLSearchParams(hashStr.includes('?') ? hashStr.split('?')[1] : hashStr);
 
-    // 1. Firebase Auth Action Code: verifyEmail
-    if ((mode === 'verifyEmail' || action === 'verify-email') && oobCode) {
-      if (processedActionCodes.has(oobCode)) {
+    const mode =
+      searchParams.get('mode') ||
+      hashParams.get('mode') ||
+      searchParams.get('action') ||
+      hashParams.get('action');
+
+    const rawOobCode =
+      searchParams.get('oobCode') ||
+      hashParams.get('oobCode') ||
+      searchParams.get('code') ||
+      hashParams.get('code');
+
+    const oobCode = rawOobCode ? decodeURIComponent(rawOobCode).trim() : null;
+    const token = searchParams.get('token') || hashParams.get('token');
+    const emailParam = searchParams.get('email') || hashParams.get('email');
+    const emailVerified = searchParams.get('emailVerified') || hashParams.get('emailVerified');
+
+    // 1. PASSWORD RESET ACTION
+    const isResetMode = mode === 'resetPassword' || mode === 'reset-password';
+    const effectiveResetCode = oobCode || (token && !token.startsWith('verify_') ? token : null);
+
+    if (isResetMode && effectiveResetCode) {
+      if (processedActionCodes.has(effectiveResetCode)) {
         return;
       }
-      processedActionCodes.add(oobCode);
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+      processedActionCodes.add(effectiveResetCode);
 
-      (async () => {
-        try {
-          // Resolve verified email address via checkActionCode if possible
-          let targetEmail = emailParam || '';
-          try {
-            const info = await checkActionCode(auth, oobCode);
-            if (info?.data?.email) {
-              targetEmail = info.data.email;
-            }
-          } catch (checkErr) {
-            console.warn('[Firebase Auth] checkActionCode warning:', checkErr);
-          }
-
-          // Apply action code to complete verification
-          await applyActionCode(auth, oobCode);
-
-          if (auth.currentUser) {
-            await auth.currentUser.reload().catch(() => {});
-          }
-
-          if (targetEmail) {
+      // If it's a Firebase Auth action code
+      if (!effectiveResetCode.startsWith('rst_')) {
+        verifyPasswordResetCode(auth, effectiveResetCode)
+          .then((resolvedEmail) => {
+            const targetEmail = resolvedEmail || emailParam || '';
             setAuthEmail(targetEmail);
-            try {
-              const clean = targetEmail.trim().toLowerCase();
-              await setDoc(
-                doc(db, 'emailVerifications', clean),
-                {
-                  email: clean,
-                  isVerified: true,
-                  isEmailVerified: true,
-                  verifiedAt: new Date().toISOString()
-                },
-                { merge: true }
-              );
-            } catch (fsErr) {
-              console.warn('[Firestore] Could not sync emailVerifications:', fsErr);
-            }
-          }
-
-          setAuthModalMode('login');
-          setAuthSuccessMessage('🎉 Your email has been successfully verified! You can now log in using your Gmail and password.');
-          setAuthModalOpen(true);
-        } catch (err: any) {
-          console.error('Error applying action code:', err);
-          setAuthModalMode('login');
-
-          let alreadyVerified = false;
-          if (auth.currentUser?.emailVerified) {
-            alreadyVerified = true;
-          } else if (emailParam) {
-            try {
-              const clean = emailParam.trim().toLowerCase();
-              const snap = await getDoc(doc(db, 'emailVerifications', clean));
-              if (snap.exists() && (snap.data().isVerified === true || snap.data().isEmailVerified === true)) {
-                alreadyVerified = true;
-              }
-            } catch {}
-          }
-
-          if (alreadyVerified) {
-            if (emailParam) setAuthEmail(emailParam);
-            setAuthSuccessMessage('🎉 Your email has been successfully verified! You can now log in using your Gmail and password.');
-          } else if (err?.code === 'auth/invalid-action-code') {
-            setAuthSuccessMessage('Notice: This verification link has expired or has already been used. If your account is verified, you can sign in directly.');
-          } else {
-            setAuthSuccessMessage('Notice: Verification link could not be verified. Please request a new verification email.');
-          }
-          setAuthModalOpen(true);
-        }
-      })();
+            setAuthResetToken(effectiveResetCode);
+            setAuthModalMode('reset-password');
+            setAuthSuccessMessage('Please set a new password for your account.');
+            setAuthModalOpen(true);
+            // Clean up the URL only AFTER successful verification
+            window.history.replaceState({}, document.title, window.location.pathname);
+          })
+          .catch((err: any) => {
+            console.error('Error verifying password reset code:', err);
+            setAuthModalMode('forgot-password');
+            setAuthSuccessMessage('Notice: This password reset link has expired or is invalid. Please request a new link.');
+            setAuthModalOpen(true);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          });
+      } else {
+        // Fallback custom token
+        setAuthEmail(emailParam || '');
+        setAuthResetToken(effectiveResetCode);
+        setAuthModalMode('reset-password');
+        setAuthSuccessMessage('Please set a new password for your account.');
+        setAuthModalOpen(true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
-    // 2. Firebase Auth Action Code: resetPassword
-    else if ((mode === 'resetPassword' || action === 'reset-password') && oobCode) {
-      if (processedActionCodes.has(oobCode)) {
+
+    // 2. EMAIL VERIFICATION ACTION
+    const isVerifyMode = mode === 'verifyEmail' || mode === 'verify-email';
+    const effectiveVerifyCode = oobCode || (token && !token.startsWith('rst_') ? token : null);
+
+    if (isVerifyMode && effectiveVerifyCode) {
+      if (processedActionCodes.has(effectiveVerifyCode)) {
         return;
       }
-      processedActionCodes.add(oobCode);
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-      verifyPasswordResetCode(auth, oobCode)
-        .then((email) => {
-          setAuthEmail(email);
-          setAuthResetToken(oobCode);
-          setAuthModalMode('reset-password');
-          setAuthSuccessMessage('Please set a new password for your account.');
-          setAuthModalOpen(true);
-        })
-        .catch((err: any) => {
-          console.error('Error verifying reset code:', err);
-          setAuthModalMode('forgot-password');
-          setAuthSuccessMessage('Notice: This password reset link has expired or is invalid. Please request a new link.');
-          setAuthModalOpen(true);
-        });
+      processedActionCodes.add(effectiveVerifyCode);
+
+      if (!effectiveVerifyCode.startsWith('verify_')) {
+        // Official Firebase Auth Action Code
+        (async () => {
+          try {
+            let targetEmail = emailParam || '';
+            try {
+              const info = await checkActionCode(auth, effectiveVerifyCode);
+              if (info?.data?.email) {
+                targetEmail = info.data.email;
+              }
+            } catch (cErr) {
+              console.warn('[Firebase Auth] checkActionCode warning:', cErr);
+            }
+
+            await applyActionCode(auth, effectiveVerifyCode);
+
+            if (auth.currentUser) {
+              await auth.currentUser.reload().catch(() => {});
+            }
+
+            if (targetEmail) {
+              setAuthEmail(targetEmail);
+              try {
+                const clean = targetEmail.trim().toLowerCase();
+                await setDoc(
+                  doc(db, 'emailVerifications', clean),
+                  {
+                    email: clean,
+                    isVerified: true,
+                    isEmailVerified: true,
+                    verifiedAt: new Date().toISOString()
+                  },
+                  { merge: true }
+                );
+              } catch {}
+            }
+
+            setAuthModalMode('login');
+            setAuthSuccessMessage('🎉 Your email has been successfully verified! You can now log in using your Gmail and password.');
+            setAuthModalOpen(true);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch (err: any) {
+            console.error('Error applying verification code:', err);
+            setAuthModalMode('login');
+
+            let alreadyVerified = false;
+            if (auth.currentUser?.emailVerified) {
+              alreadyVerified = true;
+            } else if (emailParam) {
+              try {
+                const clean = emailParam.trim().toLowerCase();
+                const snap = await getDoc(doc(db, 'emailVerifications', clean));
+                if (snap.exists() && (snap.data().isVerified === true || snap.data().isEmailVerified === true)) {
+                  alreadyVerified = true;
+                }
+              } catch {}
+            }
+
+            if (alreadyVerified) {
+              if (emailParam) setAuthEmail(emailParam);
+              setAuthSuccessMessage('🎉 Your email has been successfully verified! You can now log in using your Gmail and password.');
+            } else if (err?.code === 'auth/invalid-action-code') {
+              setAuthSuccessMessage('Notice: This verification link has expired or has already been used. If your account is verified, you can sign in directly.');
+            } else {
+              setAuthSuccessMessage('Notice: Verification link could not be verified. Please request a new verification email.');
+            }
+            setAuthModalOpen(true);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        })();
+      } else {
+        // Fallback custom token
+        if (emailParam) {
+          verifyEmailRoomSewa(effectiveVerifyCode, emailParam)
+            .then((res) => {
+              setAuthEmail(emailParam);
+              setAuthModalMode('login');
+              setAuthSuccessMessage(
+                res.message || '🎉 Your RoomSewa account has been verified! You can now log in using your Gmail and password.'
+              );
+              setAuthModalOpen(true);
+              window.history.replaceState({}, document.title, window.location.pathname);
+            })
+            .catch(() => {
+              setAuthEmail(emailParam);
+              setAuthModalMode('login');
+              setAuthSuccessMessage('Notice: This verification link has expired or is invalid. Please request a new verification email.');
+              setAuthModalOpen(true);
+              window.history.replaceState({}, document.title, window.location.pathname);
+            });
+        }
+      }
     }
     // 3. Simple emailVerified redirect confirmation
     else if (emailVerified === 'true') {
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+      window.history.replaceState({}, document.title, window.location.pathname);
       setAuthModalMode('login');
       setAuthSuccessMessage('🎉 Your email has been verified! You can now log in using your Gmail and password.');
-      setAuthModalOpen(true);
-    }
-    // 4. Legacy custom verification link compatibility
-    else if (action === 'verify-email' && token && emailParam) {
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-      verifyEmailRoomSewa(token, emailParam)
-        .then((res) => {
-          setAuthEmail(emailParam);
-          setAuthModalMode('login');
-          setAuthSuccessMessage(
-            res.message || '🎉 Your RoomSewa account has been verified! You can now log in using your Gmail and password.'
-          );
-          setAuthModalOpen(true);
-        })
-        .catch((err) => {
-          setAuthEmail(emailParam);
-          setAuthModalMode('login');
-          setAuthSuccessMessage('Notice: This verification link has expired or is invalid. Please request a new verification email.');
-          setAuthModalOpen(true);
-        });
-    } else if (action === 'reset-password' && token && emailParam) {
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-      setAuthEmail(emailParam);
-      setAuthResetToken(token);
-      setAuthModalMode('reset-password');
-      setAuthSuccessMessage('Please set a new password for your account.');
       setAuthModalOpen(true);
     }
   }, []);
@@ -464,7 +495,7 @@ function MainAppContent() {
 
       {/* Global Modals */}
       <AuthModal
-        key={`auth-modal-${authModalMode}-${authModalOpen}-${authEmail}`}
+        key={`auth-modal-${authModalMode}-${authModalOpen}-${authEmail}-${authResetToken}`}
         isOpen={authModalOpen}
         onClose={() => {
           setAuthModalOpen(false);

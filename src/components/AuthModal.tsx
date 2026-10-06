@@ -290,7 +290,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setErrorMsg('');
         setSuccessMsg(res.message);
       } else if (mode === 'reset-password') {
-        const res = await resetPasswordWithFirebaseAuth(resetToken, newPassword);
+        const tokenToUse = resetToken || initialResetToken;
+        if (!tokenToUse) {
+          throw new Error('This password reset link has expired or is invalid. Please request a new link.');
+        }
+        const res = await resetPasswordWithFirebaseAuth(tokenToUse, newPassword, email);
         setErrorMsg('');
         setSuccessMsg(res.message);
         setPassword('');

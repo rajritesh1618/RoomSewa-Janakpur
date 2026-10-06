@@ -491,7 +491,7 @@ export async function resendVerificationWithFirebaseAuth(
 
 /**
  * Forgot Password:
- * Sends password reset link to user's registered Gmail using RoomSewa Janakpur email delivery.
+ * Sends official Firebase Auth password reset email to user's registered Gmail.
  */
 export async function forgotPasswordWithFirebaseAuth(email: string): Promise<AuthSuccessResult> {
   const cleanEmail = email.trim().toLowerCase();
@@ -500,42 +500,38 @@ export async function forgotPasswordWithFirebaseAuth(email: string): Promise<Aut
     throw new Error(GMAIL_ERROR_MESSAGE);
   }
 
+  // 1. Dispatch official Firebase Auth Password Reset Email
   try {
-    const res = await forgotPasswordRoomSewa(cleanEmail);
+    const actionSettings = getActionCodeSettings('/');
+    if (actionSettings) {
+      try {
+        await sendPasswordResetEmail(auth, cleanEmail, actionSettings);
+      } catch (settingsErr: any) {
+        console.warn('[Firebase Auth] sendPasswordResetEmail with settings fallback to default:', settingsErr?.message);
+        await sendPasswordResetEmail(auth, cleanEmail);
+      }
+    } else {
+      await sendPasswordResetEmail(auth, cleanEmail);
+    }
+
     return {
       success: true,
-      message: res.message || `Password reset link sent to your Gmail (${cleanEmail})! Please check your Inbox and don't forget to check your Spam/Junk folder.`,
+      message: `Password reset link sent to your Gmail (${cleanEmail})! Please check your Inbox and don't forget to check your Spam/Junk folder.`,
       email: cleanEmail
     };
-  } catch (apiErr) {
-    console.warn('[RoomSewa Auth] Primary reset dispatch failed, queueing via Firestore:', apiErr);
-    // Queue in Firestore mailRequests
+  } catch (fbErr: any) {
+    console.warn('[Firebase Auth] Primary sendPasswordResetEmail failed, attempting fallback:', fbErr?.message);
     try {
-      const token = `rst_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-      const resetLink = `${PRODUCTION_ROOMSEWA_DOMAIN}/?action=reset-password&token=${token}&email=${encodeURIComponent(cleanEmail)}`;
-      await addDoc(collection(db, 'mailRequests'), {
-        to: cleanEmail,
-        type: 'password_reset',
-        status: 'pending',
-        token,
-        resetLink,
-        createdAt: new Date().toISOString()
-      });
+      const res = await forgotPasswordRoomSewa(cleanEmail);
       return {
         success: true,
-        message: `Password reset link sent to your Gmail (${cleanEmail})! Please check your Inbox and don't forget to check your Spam/Junk folder.`,
+        message: res.message || `Password reset link sent to your Gmail (${cleanEmail})! Please check your Inbox and don't forget to check your Spam/Junk folder.`,
         email: cleanEmail
       };
-    } catch (fsErr) {
-      console.warn('[RoomSewa Auth] Firestore reset queueing encountered error:', fsErr);
+    } catch {
+      throw fbErr;
     }
   }
-
-  return {
-    success: true,
-    message: `Password reset link sent to your Gmail (${cleanEmail})! Please check your Inbox and don't forget to check your Spam/Junk folder.`,
-    email: cleanEmail
-  };
 }
 
 /**
@@ -543,12 +539,32 @@ export async function forgotPasswordWithFirebaseAuth(email: string): Promise<Aut
  */
 export async function resetPasswordWithFirebaseAuth(
   oobCode: string,
-  newPassword: string
+  newPassword: string,
+  email?: string
 ): Promise<AuthSuccessResult> {
   if (!newPassword || newPassword.length < 6) {
     throw new Error('New password must be at least 6 characters long.');
   }
 
+  // Support legacy/fallback custom reset token if applicable
+  if (oobCode.startsWith('rst_')) {
+    try {
+      const res = await resetPasswordRoomSewa({
+        email: email || '',
+        token: oobCode,
+        newPassword,
+        confirmPassword: newPassword
+      });
+      return {
+        success: true,
+        message: res.message || 'Your password has been changed successfully! You can now log in using your Gmail and new password.'
+      };
+    } catch (err: any) {
+      throw new Error(err?.message || 'Failed to reset password. Please try again.');
+    }
+  }
+
+  // Official Firebase Auth Action Code confirmation
   try {
     await confirmPasswordReset(auth, oobCode, newPassword);
     return {
