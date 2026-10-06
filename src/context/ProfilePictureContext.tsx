@@ -57,7 +57,8 @@ export const ProfilePictureProvider: React.FC<{ children: ReactNode }> = ({ chil
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const resolveTargetUser = (user?: Partial<ProfileTargetUser>): ProfileTargetUser => {
-    const isSelf = !user || !user.uid || user.uid === currentUser?.uid;
+    // Only resolve to current logged-in user if no target user was specified, or if user explicitly represents currentUser without an external photo
+    const isSelf = !user || (!user.photoURL && (!user.uid || user.uid === currentUser?.uid));
     if (isSelf) {
       return {
         uid: currentUser?.uid || 'anonymous',
@@ -70,7 +71,7 @@ export const ProfilePictureProvider: React.FC<{ children: ReactNode }> = ({ chil
     }
 
     return {
-      uid: user.uid || '',
+      uid: user.uid || 'external',
       displayName: user.displayName || 'User',
       email: user.email,
       photoURL: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid || 'user'}`,

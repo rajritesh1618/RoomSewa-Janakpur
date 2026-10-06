@@ -26,6 +26,8 @@ export interface UserProfile {
   isDisabled?: boolean;
   welcomeMessageSent?: boolean;
   isNewSignup?: boolean;
+  isEmailVerified?: boolean;
+  emailVerified?: boolean;
 }
 
 export interface ChowkLocation {
@@ -82,6 +84,10 @@ export interface RoomEditableFields {
   isHidden?: boolean;
   customFeatures?: Record<string, any>;
   electricityChargePerUnit?: number;
+  electricityCharge?: number;
+  electricityIncluded?: boolean;
+  waterCharge?: number;
+  waterIncluded?: boolean;
   waterAvailabilityType?: '24_hours' | 'custom_time';
   waterTimeSlots?: { id: string; from: string; to: string }[];
   waterSource?: 'Tap Only' | 'Handpump Only' | 'Tap and Handpump' | 'Other' | string;
@@ -168,6 +174,15 @@ export interface RoomListing {
 
   // Electricity (Simplified & Mandatory per unit)
   electricityChargePerUnit?: number;
+  electricityCharge?: number;
+  electricityIncluded?: boolean;
+
+  // Water Charges
+  waterCharge?: number;
+  waterIncluded?: boolean;
+
+  // Wi-Fi Charge
+  wifiCharge?: number;
 
   // Water Availability & Source (Redesigned)
   waterAvailabilityType?: '24_hours' | 'custom_time';

@@ -17,6 +17,7 @@ import {
   Building
 } from 'lucide-react';
 import { RoomListing } from '../types';
+import { calculateRoomPricing } from '../utils/pricingCalculator';
 import { getClientFallbackCoordinates } from '../services/geminiGeocode';
 
 interface InteractiveRoomMapProps {
@@ -61,6 +62,7 @@ export const InteractiveRoomMap: React.FC<InteractiveRoomMapProps> = ({
   const [copied, setCopied] = useState(false);
 
   const fallbackChowk = getClientFallbackCoordinates(room.chowk);
+  const pricing = calculateRoomPricing(room);
   const hasExactCoordinates = Boolean(
     room.locationCoordinates?.lat && room.locationCoordinates?.lng
   );
@@ -164,7 +166,7 @@ export const InteractiveRoomMap: React.FC<InteractiveRoomMapProps> = ({
               </div>
               <div className="mt-1 px-2.5 py-1 rounded-xl bg-slate-950/95 text-white shadow-xl border border-slate-700 pointer-events-none flex items-center gap-1.5 whitespace-nowrap">
                 <span className="text-[11px] font-extrabold text-amber-300 font-mono">
-                  Rs. {room.rentPerMonth.toLocaleString()}
+                  {pricing.totalFormatted}
                 </span>
                 <span className="text-[10px] text-slate-300 font-medium">
                   • {room.chowk}

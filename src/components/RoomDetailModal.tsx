@@ -37,6 +37,8 @@ import { useContent } from '../context/ContentContext';
 import { DynamicFeaturesView } from './DynamicFeaturesView';
 import { InteractiveRoomMap } from './InteractiveRoomMap';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
+import { RoomPhotoLightbox } from './RoomPhotoLightbox';
+import { RoomPricingCard } from './RoomPricingCard';
 
 interface RoomDetailModalProps {
   room: RoomListing | null;
@@ -52,6 +54,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({ room, onClose,
   const { openViewer, openMenu } = useProfilePicture();
   const { isFeatureVisible, features } = useContent();
   const [selectedPhoto, setSelectedPhoto] = useState(0);
+  const [isPhotoLightboxOpen, setIsPhotoLightboxOpen] = useState(false);
   const [inquiryMessage, setInquiryMessage] = useState(
     'Namaste! I am interested in this room in Janakpur. Is it currently available for viewing?'
   );
@@ -224,12 +227,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({ room, onClose,
                 src={photos[selectedPhoto]}
                 alt={`${room.title} - Photo ${selectedPhoto + 1}`}
                 className="w-full h-full object-cover transition-opacity duration-300 cursor-pointer"
-                onClick={() =>
-                  openViewer({
-                    photoURL: photos[selectedPhoto],
-                    displayName: `${room.title} (Photo ${selectedPhoto + 1} of ${photos.length})`
-                  })
-                }
+                onClick={() => setIsPhotoLightboxOpen(true)}
               />
 
               {/* Gradient overlays for controls readability */}
@@ -261,14 +259,10 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({ room, onClose,
               <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    openViewer({
-                      photoURL: photos[selectedPhoto],
-                      displayName: `${room.title} (Photo ${selectedPhoto + 1} of ${photos.length})`
-                    })
-                  }
-                  className="px-3 py-1.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white text-xs font-bold backdrop-blur-md flex items-center gap-1.5 transition-all shadow-sm"
-                  title="Click to view full screen"
+                  id="enlarge-room-photo-btn"
+                  onClick={() => setIsPhotoLightboxOpen(true)}
+                  className="px-3 py-1.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white text-xs font-bold backdrop-blur-md flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                  title="Click to view full screen room image"
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Enlarge</span>
@@ -339,7 +333,7 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({ room, onClose,
           </div>
 
           {/* Title & Key Pricing Section */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+          <div className="space-y-4 pb-2 border-b border-slate-200">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 mb-1">
                 <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
@@ -352,17 +346,8 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({ room, onClose,
               </h1>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shrink-0 text-right md:min-w-[190px]">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
-                Monthly Rent
-              </span>
-              <div className="text-2xl sm:text-3xl font-black text-indigo-700 font-heading">
-                Rs {room.rentPerMonth.toLocaleString()}
-              </div>
-              <span className="text-xs font-medium text-slate-500">
-                {room.negotiable ? 'Negotiable with owner' : 'Fixed Price'}
-              </span>
-            </div>
+            {/* Prominent Pricing & Additional Charges Breakdown */}
+            <RoomPricingCard room={room} variant="detailed" />
           </div>
 
           {/* Key Specifications Grid */}
@@ -389,6 +374,8 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({ room, onClose,
                 <div className="text-sm font-bold text-slate-900">
                   {room.electricityChargePerUnit
                     ? `NPR ${room.electricityChargePerUnit} per unit`
+                    : room.electricityCharge
+                    ? `NPR ${room.electricityCharge.toLocaleString()}/month`
                     : room.electricityFacility || 'Separate Meter'}
                 </div>
               </div>
@@ -399,7 +386,11 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({ room, onClose,
                   Wi-Fi Internet
                 </div>
                 <div className="text-sm font-bold text-slate-900">
-                  {room.wifiAvailable ? 'Included / Available' : 'Not Included'}
+                  {room.wifiAvailable
+                    ? room.wifiCharge && room.wifiCharge > 0
+                      ? `NPR ${room.wifiCharge.toLocaleString()}/month`
+                      : 'Included / Free'
+                    : 'Not Included'}
                 </div>
               </div>
 
@@ -665,6 +656,16 @@ export const RoomDetailModal: React.FC<RoomDetailModalProps> = ({ room, onClose,
             setIsDeleting(false);
           }
         }}
+      />
+
+      {/* Fullscreen Room Listing Photo Lightbox */}
+      <RoomPhotoLightbox
+        isOpen={isPhotoLightboxOpen}
+        photos={photos}
+        initialIndex={selectedPhoto}
+        title={room.title}
+        onClose={() => setIsPhotoLightboxOpen(false)}
+        onIndexChange={(newIdx) => setSelectedPhoto(newIdx)}
       />
     </div>
   );

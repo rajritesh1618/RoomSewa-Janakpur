@@ -188,6 +188,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return; // Prevent multiple form submissions while processing
+    setSubmitting(true);
 
     setErrorMsg('');
     setSuccessMsg('');
@@ -198,54 +199,63 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (mode === 'login') {
       if (!email.trim() || !password) {
         setErrorMsg('Please enter your email and password.');
+        setSubmitting(false);
         return;
       }
       if (!isEmailValid) {
         setErrorMsg('Please enter a valid email address.');
+        setSubmitting(false);
         return;
       }
     } else if (mode === 'signup') {
       if (!name.trim() || !phoneDigits || !email.trim() || !password) {
         setErrorMsg('Please fill in all required fields.');
+        setSubmitting(false);
         return;
       }
       if (!isEmailValid) {
         setErrorMsg('Please enter a valid email address.');
+        setSubmitting(false);
         return;
       }
       if (password.length < 6) {
         setErrorMsg('Password is too weak. Please use a stronger password.');
+        setSubmitting(false);
         return;
       }
       if (!isPhoneValid) {
         setErrorMsg(NEPAL_PHONE_ERROR_MESSAGE);
+        setSubmitting(false);
         return;
       }
     } else if (mode === 'forgot-password') {
       if (!email.trim()) {
         setErrorMsg('Please enter your email and password.');
+        setSubmitting(false);
         return;
       }
       if (!isEmailValid) {
         setErrorMsg('Please enter a valid email address.');
+        setSubmitting(false);
         return;
       }
     } else if (mode === 'reset-password') {
       if (!newPassword || !confirmPassword) {
         setErrorMsg('Please fill in all required fields.');
+        setSubmitting(false);
         return;
       }
       if (newPassword !== confirmPassword) {
         setErrorMsg('Passwords do not match.');
+        setSubmitting(false);
         return;
       }
       if (newPassword.length < 6) {
         setErrorMsg('Password is too weak. Please use a stronger password.');
+        setSubmitting(false);
         return;
       }
     }
-
-    setSubmitting(true);
 
     try {
       if (mode === 'login') {

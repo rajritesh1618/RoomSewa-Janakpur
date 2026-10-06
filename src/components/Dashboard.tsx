@@ -28,6 +28,7 @@ import { useContent } from '../context/ContentContext';
 import { RoomCard } from './RoomCard';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { RoomListing, InterestedInquiry, UserRole } from '../types';
+import { calculateRoomPricing } from '../utils/pricingCalculator';
 import {
   isValidNepalMobile,
   extractNepalLocalMobile,
@@ -642,14 +643,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <h4 className="font-heading text-sm sm:text-base font-bold text-slate-900 line-clamp-1 mt-0.5">
                           {room.title}
                         </h4>
-                        <div className="text-xs font-bold text-indigo-700 mt-0.5">
-                          Rs {room.rentPerMonth.toLocaleString()} / month
-                          {room.electricityChargePerUnit && (
-                            <span className="text-slate-500 font-normal ml-2">
-                              • Electricity: NPR {room.electricityChargePerUnit}/unit
-                            </span>
-                          )}
-                        </div>
+                        {(() => {
+                          const pricing = calculateRoomPricing(room);
+                          return (
+                            <div className="text-xs font-bold text-amber-950 mt-1 flex items-center gap-2 flex-wrap">
+                              <span className="px-2 py-0.5 rounded-md bg-amber-100 border border-amber-300">
+                                Total: {pricing.totalFormatted}
+                              </span>
+                              <span className="text-slate-500 font-normal">
+                                (Rent: NPR {room.rentPerMonth.toLocaleString()})
+                              </span>
+                              {pricing.variableChargesNote && (
+                                <span className="text-amber-800 text-[11px] font-normal">
+                                  {pricing.variableChargesNote}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Status Notice Banners for Owner */}
                         {room.approvalStatus === 'pending' && (

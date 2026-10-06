@@ -28,6 +28,8 @@ import {
 import { RoomListing, ChowkLocation, RoomFeature } from '../../types';
 import { useProfilePicture } from '../../context/ProfilePictureContext';
 import { DynamicFeaturesView } from '../DynamicFeaturesView';
+import { RoomPhotoLightbox } from '../RoomPhotoLightbox';
+import { RoomPricingCard } from '../RoomPricingCard';
 
 interface AdminPendingListingsProps {
   pendingRooms: RoomListing[];
@@ -52,6 +54,7 @@ export const AdminPendingListings: React.FC<AdminPendingListingsProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [inspectingRoom, setInspectingRoom] = useState<RoomListing | null>(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [lightboxData, setLightboxData] = useState<{ photos: string[]; title: string; initialIndex: number } | null>(null);
 
   // Rejection Modal State
   const [rejectingRoom, setRejectingRoom] = useState<RoomListing | null>(null);
@@ -228,7 +231,13 @@ export const AdminPendingListings: React.FC<AdminPendingListingsProps> = ({
                       src={coverPhoto}
                       alt={room.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
-                      onClick={() => openViewer({ photoURL: coverPhoto, displayName: room.title })}
+                      onClick={() =>
+                        setLightboxData({
+                          photos: room.photos && room.photos.length > 0 ? room.photos : [coverPhoto],
+                          title: room.title,
+                          initialIndex: 0
+                        })
+                      }
                     />
                     <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
                       <span className="px-2.5 py-1 rounded-full bg-amber-500 text-white text-[10px] font-extrabold uppercase shadow-sm flex items-center gap-1">
@@ -393,9 +402,13 @@ export const AdminPendingListings: React.FC<AdminPendingListingsProps> = ({
                     alt={inspectingRoom.title}
                     className="w-full h-full object-cover cursor-pointer"
                     onClick={() =>
-                      openViewer({
-                        photoURL: inspectingRoom.photos?.[activePhotoIndex] || '',
-                        displayName: inspectingRoom.title
+                      setLightboxData({
+                        photos:
+                          inspectingRoom.photos && inspectingRoom.photos.length > 0
+                            ? inspectingRoom.photos
+                            : [inspectingRoom.photos?.[activePhotoIndex] || 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=800&q=80'],
+                        title: inspectingRoom.title,
+                        initialIndex: activePhotoIndex
                       })
                     }
                   />
@@ -423,6 +436,9 @@ export const AdminPendingListings: React.FC<AdminPendingListingsProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Prominent Pricing & Charges Breakdown */}
+              <RoomPricingCard room={inspectingRoom} variant="detailed" />
 
               {/* Core Details Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
@@ -711,6 +727,15 @@ export const AdminPendingListings: React.FC<AdminPendingListingsProps> = ({
           </div>
         </div>
       )}
+
+      {/* Fullscreen Room Listing Photo Lightbox */}
+      <RoomPhotoLightbox
+        isOpen={Boolean(lightboxData)}
+        photos={lightboxData?.photos || []}
+        initialIndex={lightboxData?.initialIndex || 0}
+        title={lightboxData?.title || 'Room Listing'}
+        onClose={() => setLightboxData(null)}
+      />
     </div>
   );
 };

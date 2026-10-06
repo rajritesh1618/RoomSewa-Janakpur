@@ -20,6 +20,12 @@ export function getAuthErrorMessage(error: any, context: AuthContextMode = 'logi
   const rawCode = (typeof error === 'string' ? error : error?.code || '').toLowerCase().trim();
   const rawMessage = (typeof error === 'string' ? error : error?.message || '').toLowerCase();
 
+  // 0. Resend Cooldown / Rate Limiting
+  if (rawMessage.includes('resend available in') || error?.remainingSeconds !== undefined) {
+    const secs = error?.remainingSeconds !== undefined ? error.remainingSeconds : 60;
+    return `Resend available in ${secs}s. Please check your Inbox and don't forget to check your Spam/Junk folder.`;
+  }
+
   // 1. Email is not verified (gate)
   if (
     error?.unverified === true ||

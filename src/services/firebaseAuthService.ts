@@ -70,26 +70,33 @@ export function getSessionAuthCache(email: string): CachedAuthCreds | null {
 
 export const PRODUCTION_ROOMSEWA_DOMAIN = 'https://roomsewajnk.netlify.app';
 
+// Track client-side 60-second cooldown per email
+export const resendCooldownTimestamps = new Map<string, number>();
+
 /**
  * Builds ActionCodeSettings with redirect URL back to the RoomSewa app.
- * Enforces the actual production RoomSewa domain (https://roomsewajnk.netlify.app)
- * in email verification and password reset links per requirements.
  */
-export function getActionCodeSettings(path = '/'): ActionCodeSettings {
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return {
-    url: `${PRODUCTION_ROOMSEWA_DOMAIN}${cleanPath}`,
-    handleCodeInApp: false
-  };
+export function getActionCodeSettings(path = '/'): ActionCodeSettings | undefined {
+  try {
+    const origin =
+      typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')
+        ? window.location.origin
+        : PRODUCTION_ROOMSEWA_DOMAIN;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return {
+      url: `${origin}${cleanPath}`,
+      handleCodeInApp: false
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 /**
- * Dispatches verification email strictly from the official RoomSewa Janakpur email account.
- * Primary: Queues in Firestore mailRequests for real-time background worker delivery via Gmail SMTP.
- * Secondary: Direct HTTP endpoint dispatch (/api/auth/send-verification-email).
- * Completely removes any fallback to default/old project email.
+ * Single-dispatch fallback for verification email when native Firebase Auth fails.
+ * Guarantees NO duplicate emails are sent.
  */
-export async function dispatchRoomSewaVerificationEmail(params: {
+export async function dispatchSingleVerificationEmailFallback(params: {
   email: string;
   name?: string;
   uid?: string;
@@ -97,16 +104,24 @@ export async function dispatchRoomSewaVerificationEmail(params: {
   const { email, name, uid } = params;
   const cleanEmail = email.trim().toLowerCase();
 
-  const token = `verify_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-  const verificationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-  const currentOrigin =
-    typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')
-      ? window.location.origin
-      : PRODUCTION_ROOMSEWA_DOMAIN;
-  const verificationLink = `${currentOrigin}/?action=verify-email&token=${token}&email=${encodeURIComponent(cleanEmail)}`;
-
-  // 1. Guaranteed queue in Firestore mailRequests for background worker delivery via RoomSewa Janakpur Gmail SMTP
+  // Try direct backend HTTP dispatch first
   try {
+    await sendVerificationEmailRoomSewa(cleanEmail, name, uid);
+    return;
+  } catch (apiErr) {
+    console.warn('[RoomSewa Auth] Direct HTTP dispatch failed, queueing single doc to Firestore:', apiErr);
+  }
+
+  // Fallback to Firestore queue only if HTTP dispatch was unreachable
+  try {
+    const token = `verify_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    const verificationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    const currentOrigin =
+      typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')
+        ? window.location.origin
+        : PRODUCTION_ROOMSEWA_DOMAIN;
+    const verificationLink = `${currentOrigin}/?action=verify-email&token=${token}&email=${encodeURIComponent(cleanEmail)}`;
+
     await addDoc(collection(db, 'mailRequests'), {
       to: cleanEmail,
       name: name || cleanEmail.split('@')[0],
@@ -130,28 +145,34 @@ export async function dispatchRoomSewaVerificationEmail(params: {
       { merge: true }
     );
   } catch (fsErr) {
-    console.warn('[RoomSewa Auth] Firestore mail queueing encountered error:', fsErr);
-  }
-
-  // 2. Direct backend HTTP dispatch attempt (if server is directly accessible)
-  try {
-    await sendVerificationEmailRoomSewa(cleanEmail, name, uid);
-  } catch (apiErr) {
-    console.log('[RoomSewa Auth] Background Firestore worker will process dispatch:', apiErr);
+    console.warn('[RoomSewa Auth] Firestore fallback mail queueing encountered error:', fsErr);
   }
 }
 
 /**
- * Safely sends email verification strictly via RoomSewa Janakpur sender.
- * Enforces sender name as RoomSewa Janakpur and address as roomsewajanakpur@gmail.com.
+ * Safely sends email verification strictly once via Firebase Auth.
  */
 export async function sendEmailVerificationSafe(user: User): Promise<void> {
   if (user && user.email) {
-    await dispatchRoomSewaVerificationEmail({
-      email: user.email,
-      name: user.displayName || undefined,
-      uid: user.uid
-    });
+    try {
+      const actionCodeSettings = getActionCodeSettings('/');
+      if (actionCodeSettings) {
+        try {
+          await sendEmailVerification(user, actionCodeSettings);
+        } catch {
+          await sendEmailVerification(user);
+        }
+      } else {
+        await sendEmailVerification(user);
+      }
+    } catch (err: any) {
+      console.warn('[Firebase Auth] sendEmailVerificationSafe fallback:', err);
+      await dispatchSingleVerificationEmailFallback({
+        email: user.email,
+        name: user.displayName || undefined,
+        uid: user.uid
+      });
+    }
   }
 }
 
@@ -225,24 +246,42 @@ export async function signupWithFirebaseAuth(params: {
     console.error('Error writing profile to Firestore:', err);
   }
 
-  // 4. Send official verification email via RoomSewa Janakpur sender
+  // 4. Send official verification email strictly once via Firebase Auth (no duplicate emails)
   try {
-    await dispatchRoomSewaVerificationEmail({
-      email: cleanEmail,
-      name: name.trim(),
-      uid: fbUser.uid
-    });
+    const actionSettings = getActionCodeSettings('/');
+    if (actionSettings) {
+      try {
+        await sendEmailVerification(fbUser, actionSettings);
+      } catch (settingsErr: any) {
+        console.warn('[Firebase Auth] sendEmailVerification with settings fallback to default:', settingsErr?.message);
+        await sendEmailVerification(fbUser);
+      }
+    } else {
+      await sendEmailVerification(fbUser);
+    }
   } catch (err: any) {
-    console.warn('Error dispatching verification email:', err);
-    const mailError: any = new Error("We couldn't send the verification email. Please try again.");
-    mailError.code = 'auth/email-send-failed';
-    throw mailError;
+    console.warn('[Firebase Auth] sendEmailVerification encountered error, using single dispatch fallback:', err?.message);
+    try {
+      await dispatchSingleVerificationEmailFallback({
+        email: cleanEmail,
+        name: name.trim(),
+        uid: fbUser.uid
+      });
+    } catch (fallbackErr: any) {
+      console.error('[Firebase Auth] Fallback verification email dispatch failed:', fallbackErr);
+      const mailError: any = new Error("We couldn't send the verification email. Please try again.");
+      mailError.code = 'auth/email-send-failed';
+      throw mailError;
+    }
   }
 
   // 5. Cache credentials for resend during this session
   setSessionAuthCache(cleanEmail, password, fbUser);
 
-  // 6. Sign out so user is NOT logged in while unverified
+  // 6. Record timestamp for strict 60s resend cooldown
+  resendCooldownTimestamps.set(cleanEmail, Date.now());
+
+  // 7. Sign out so user is NOT logged in while unverified
   await fbSignOut(auth);
 
   return {
@@ -274,7 +313,11 @@ export async function loginWithFirebaseAuth(email: string, pass: string): Promis
   setSessionAuthCache(cleanEmail, pass, fbUser);
 
   // Strict email verification gate:
-  // Check either Firebase Auth native emailVerified OR Firestore profile isEmailVerified / emailVerifications
+  // First reload user to reflect real-time verification status from Firebase Auth
+  try {
+    await fbUser.reload();
+  } catch {}
+
   let isVerified = fbUser.emailVerified;
   if (!isVerified) {
     try {
@@ -323,18 +366,22 @@ export async function loginWithFirebaseAuth(email: string, pass: string): Promis
       photoURL: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${fbUser.uid}`,
       role: isSuper ? 'admin' : 'seeker',
       isPremium: isSuper,
+      isEmailVerified: true,
       createdAt: new Date().toISOString(),
       welcomeMessageSent: true,
       isNewSignup: false
     };
     await setDoc(userRef, newProfile);
+  } else {
+    // Keep isEmailVerified synchronized in Firestore
+    await setDoc(userRef, { isEmailVerified: true }, { merge: true });
   }
 
   return fbUser;
 }
 
 /**
- * Resends verification email using RoomSewa Janakpur email delivery.
+ * Resends verification email using Firebase Auth with a strict 60-second cooldown.
  */
 export async function resendVerificationWithFirebaseAuth(
   email: string,
@@ -344,6 +391,19 @@ export async function resendVerificationWithFirebaseAuth(
 
   if (!isValidGmail(cleanEmail)) {
     throw new Error(GMAIL_ERROR_MESSAGE);
+  }
+
+  // 1. Enforce strict 60-second cooldown
+  const now = Date.now();
+  const lastSent = resendCooldownTimestamps.get(cleanEmail) || 0;
+  const elapsed = now - lastSent;
+  if (elapsed < 60000) {
+    const remainingSeconds = Math.ceil((60000 - elapsed) / 1000);
+    const err: any = new Error(
+      `Resend available in ${remainingSeconds}s. Please check your Inbox and don't forget to check your Spam/Junk folder.`
+    );
+    err.remainingSeconds = remainingSeconds;
+    throw err;
   }
 
   // Check if we have an active user or cached credentials to authenticate
@@ -361,23 +421,65 @@ export async function resendVerificationWithFirebaseAuth(
   }
 
   // Check if already verified
-  if (targetUser && targetUser.emailVerified) {
-    return {
-      success: true,
-      message: 'Your account is already verified! You can log in directly.',
-      remainingSeconds: 0
-    };
+  if (targetUser) {
+    try {
+      await targetUser.reload();
+    } catch {}
+    if (targetUser.emailVerified) {
+      return {
+        success: true,
+        message: 'Your account is already verified! You can log in directly.',
+        remainingSeconds: 0
+      };
+    }
   }
 
-  // Dispatch fresh verification email from RoomSewa Janakpur account
-  await dispatchRoomSewaVerificationEmail({
-    email: cleanEmail,
-    name: targetUser?.displayName || undefined,
-    uid: targetUser?.uid
-  });
+  // Dispatch fresh verification email
+  let dispatched = false;
+  if (targetUser) {
+    try {
+      const actionSettings = getActionCodeSettings('/');
+      if (actionSettings) {
+        try {
+          await sendEmailVerification(targetUser, actionSettings);
+        } catch {
+          await sendEmailVerification(targetUser);
+        }
+      } else {
+        await sendEmailVerification(targetUser);
+      }
+      dispatched = true;
+    } catch (fbErr: any) {
+      console.warn('[Firebase Auth] Native resend sendEmailVerification failed:', fbErr?.message);
+    }
+    // Sign out to maintain the unverified logged-out constraint
+    await fbSignOut(auth);
+  }
 
-  // Sign out to maintain the unverified logged-out constraint
-  await fbSignOut(auth);
+  if (!dispatched) {
+    try {
+      const res = await resendVerificationLink(cleanEmail);
+      if (res.remainingSeconds !== undefined) {
+        resendCooldownTimestamps.set(cleanEmail, Date.now() - (60 - res.remainingSeconds) * 1000);
+      } else {
+        resendCooldownTimestamps.set(cleanEmail, Date.now());
+      }
+      return {
+        success: true,
+        message: res.message || "Verification email sent. Please check your Inbox and don't forget to check your Spam/Junk folder.",
+        email: cleanEmail,
+        remainingSeconds: 60
+      };
+    } catch (resendErr: any) {
+      if (resendErr?.remainingSeconds !== undefined) {
+        resendCooldownTimestamps.set(cleanEmail, Date.now() - (60 - resendErr.remainingSeconds) * 1000);
+      }
+      throw resendErr;
+    }
+  }
+
+  // Update cooldown timestamp
+  resendCooldownTimestamps.set(cleanEmail, Date.now());
 
   return {
     success: true,

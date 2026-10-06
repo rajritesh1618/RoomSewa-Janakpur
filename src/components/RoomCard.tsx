@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { useProfilePicture } from '../context/ProfilePictureContext';
 import { useContent } from '../context/ContentContext';
+import { RoomPricingCard } from './RoomPricingCard';
 
 interface RoomCardProps {
   room: RoomListing;
@@ -175,78 +176,79 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
           </h3>
 
           {/* Key Facilities Badges */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-4">
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-sky-50 text-sky-800 border border-sky-200/80">
+          <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-sky-50 text-sky-800 border border-sky-200/80">
               <Droplets className="w-3 h-3 text-sky-600" />
               {room.waterFacility}
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-amber-50 text-amber-900 border border-amber-200/80">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-amber-50 text-amber-900 border border-amber-200/80">
               <Zap className="w-3 h-3 text-amber-600" />
               {room.electricityFacility}
             </span>
             {room.wifiAvailable && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/80">
                 <Wifi className="w-3 h-3 text-emerald-600" />
                 Wi-Fi
               </span>
             )}
             {room.studentsAllowed && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-md bg-orange-50 text-orange-900 border border-orange-200/80">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-orange-50 text-orange-900 border border-orange-200/80">
                 <GraduationCap className="w-3 h-3 text-orange-600" />
                 Students OK
               </span>
             )}
           </div>
+
+          {/* Prominent Pricing Breakdown (Total Monthly Cost & Separated Charges) */}
+          <RoomPricingCard room={room} variant="compact" className="my-1.5" />
         </div>
 
-        {/* Footer: Price, Owner details, & Action Buttons */}
-        <div className="pt-3 border-t border-amber-100 flex items-center justify-between gap-2">
-          <div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xs font-bold text-amber-900/70">NPR</span>
-              <span className="text-lg font-black text-amber-950 font-heading">
-                Rs {room.rentPerMonth.toLocaleString()}
-              </span>
-              <span className="text-[11px] font-medium text-stone-400">/mo</span>
-            </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (currentUser && currentUser.uid === room.ownerId) {
-                    openMenu();
-                  } else {
-                    openViewer({
-                      uid: room.ownerId,
-                      displayName: room.ownerName,
-                      photoURL: room.ownerPhoto,
-                      role: 'owner'
-                    });
-                  }
-                }}
-                className="relative cursor-pointer group shrink-0"
-                title={
-                  currentUser && currentUser.uid === room.ownerId
-                    ? 'Click to see or change your profile picture'
-                    : `Click to view ${room.ownerName}'s profile photo`
+        {/* Footer: Owner Details & Action Buttons */}
+        <div className="pt-3 border-t border-amber-100 flex items-center justify-between gap-2 mt-auto">
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                if (currentUser && currentUser.uid === room.ownerId) {
+                  openMenu();
+                } else {
+                  openViewer({
+                    uid: room.ownerId,
+                    displayName: room.ownerName,
+                    photoURL: room.ownerPhoto,
+                    role: 'owner'
+                  });
                 }
-              >
-                <img
-                  src={
-                    room.ownerPhoto ||
-                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.ownerId}`
-                  }
-                  alt={room.ownerName}
-                  className="w-5 h-5 rounded-full object-cover bg-amber-50 border border-amber-200 group-hover:scale-110 transition-transform shadow-2xs"
-                />
-              </div>
+              }}
+              className="relative cursor-pointer group shrink-0"
+              title={
+                currentUser && currentUser.uid === room.ownerId
+                  ? 'Click to see or change your profile picture'
+                  : `Click to view ${room.ownerName}'s profile photo`
+              }
+            >
+              <img
+                src={
+                  room.ownerPhoto ||
+                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.ownerId}`
+                }
+                alt={room.ownerName}
+                className="w-7 h-7 rounded-full object-cover bg-amber-50 border border-amber-200 group-hover:scale-110 transition-transform shadow-2xs"
+              />
+            </div>
+            <div className="min-w-0">
               <p
                 onClick={handleMessageOwner}
-                className="text-[11px] text-stone-600 hover:text-orange-700 truncate max-w-[125px] cursor-pointer transition-colors"
+                className="text-[11px] font-bold text-stone-700 hover:text-orange-700 truncate max-w-[120px] cursor-pointer transition-colors"
                 title="Click to message this owner"
               >
-                <span className="font-bold underline decoration-amber-200 underline-offset-2 hover:decoration-orange-500">{room.ownerName || 'Verified Owner'}</span>
+                <span className="underline decoration-amber-200 underline-offset-2 hover:decoration-orange-500">
+                  {room.ownerName || 'Verified Owner'}
+                </span>
               </p>
+              <span className="text-[10px] text-stone-400 block truncate">
+                {room.chowk}
+              </span>
             </div>
           </div>
 

@@ -580,8 +580,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onSelectRoom, onEditRoom
                             <img
                               src={coverPhoto}
                               alt={room.title}
-                              className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-200 cursor-pointer"
-                              onClick={() => openViewer({ photoURL: coverPhoto, displayName: room.title })}
+                              className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => onSelectRoom(room)}
+                              title="Click to view room details"
                             />
                             <div className="min-w-0 max-w-xs">
                               <p

@@ -21,11 +21,15 @@ import { MandatoryPhoneModal } from './components/profile/MandatoryPhoneModal';
 import { JanakiMandirLogo, MithilaBorderStrip, MithilaLotusIcon } from './components/common/MithilaMotifs';
 import { RoomListing } from './types';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import { applyActionCode, verifyPasswordResetCode } from 'firebase/auth';
-import { auth } from './lib/firebase';
+import { applyActionCode, checkActionCode, verifyPasswordResetCode } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from './lib/firebase';
 import { verifyEmailRoomSewa } from './services/authService';
 
 export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyD5D09SQ5IUwybuEVxcM64JvHQqTiBJzBs';
+
+// Memory guard to guarantee action codes are never executed twice across React StrictMode renders
+const processedActionCodes = new Set<string>();
 
 function MainAppContent() {
   const { currentUser, userProfile, isOwner, isAdmin } = useAuth();
@@ -61,30 +65,89 @@ function MainAppContent() {
 
     // 1. Firebase Auth Action Code: verifyEmail
     if ((mode === 'verifyEmail' || action === 'verify-email') && oobCode) {
+      if (processedActionCodes.has(oobCode)) {
+        return;
+      }
+      processedActionCodes.add(oobCode);
       window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-      applyActionCode(auth, oobCode)
-        .then(async () => {
-          if (auth.currentUser) {
-            await auth.currentUser.reload();
+
+      (async () => {
+        try {
+          // Resolve verified email address via checkActionCode if possible
+          let targetEmail = emailParam || '';
+          try {
+            const info = await checkActionCode(auth, oobCode);
+            if (info?.data?.email) {
+              targetEmail = info.data.email;
+            }
+          } catch (checkErr) {
+            console.warn('[Firebase Auth] checkActionCode warning:', checkErr);
           }
-          if (emailParam) setAuthEmail(emailParam);
+
+          // Apply action code to complete verification
+          await applyActionCode(auth, oobCode);
+
+          if (auth.currentUser) {
+            await auth.currentUser.reload().catch(() => {});
+          }
+
+          if (targetEmail) {
+            setAuthEmail(targetEmail);
+            try {
+              const clean = targetEmail.trim().toLowerCase();
+              await setDoc(
+                doc(db, 'emailVerifications', clean),
+                {
+                  email: clean,
+                  isVerified: true,
+                  isEmailVerified: true,
+                  verifiedAt: new Date().toISOString()
+                },
+                { merge: true }
+              );
+            } catch (fsErr) {
+              console.warn('[Firestore] Could not sync emailVerifications:', fsErr);
+            }
+          }
+
           setAuthModalMode('login');
           setAuthSuccessMessage('🎉 Your email has been successfully verified! You can now log in using your Gmail and password.');
           setAuthModalOpen(true);
-        })
-        .catch((err: any) => {
+        } catch (err: any) {
           console.error('Error applying action code:', err);
           setAuthModalMode('login');
-          if (err?.code === 'auth/invalid-action-code') {
+
+          let alreadyVerified = false;
+          if (auth.currentUser?.emailVerified) {
+            alreadyVerified = true;
+          } else if (emailParam) {
+            try {
+              const clean = emailParam.trim().toLowerCase();
+              const snap = await getDoc(doc(db, 'emailVerifications', clean));
+              if (snap.exists() && (snap.data().isVerified === true || snap.data().isEmailVerified === true)) {
+                alreadyVerified = true;
+              }
+            } catch {}
+          }
+
+          if (alreadyVerified) {
+            if (emailParam) setAuthEmail(emailParam);
+            setAuthSuccessMessage('🎉 Your email has been successfully verified! You can now log in using your Gmail and password.');
+          } else if (err?.code === 'auth/invalid-action-code') {
             setAuthSuccessMessage('Notice: This verification link has expired or has already been used. If your account is verified, you can sign in directly.');
           } else {
             setAuthSuccessMessage('Notice: Verification link could not be verified. Please request a new verification email.');
           }
           setAuthModalOpen(true);
-        });
+        }
+      })();
     }
     // 2. Firebase Auth Action Code: resetPassword
     else if ((mode === 'resetPassword' || action === 'reset-password') && oobCode) {
+      if (processedActionCodes.has(oobCode)) {
+        return;
+      }
+      processedActionCodes.add(oobCode);
       window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
       verifyPasswordResetCode(auth, oobCode)
         .then((email) => {
