@@ -1,461 +1,247 @@
-import React, { useState } from 'react';
-import {
-  Search,
-  MapPin,
-  Building2,
-  CheckCircle2,
-  ShieldCheck,
-  Sparkles,
-  Crown,
-  ArrowRight,
-  TrendingUp,
-  Droplets,
-  Zap,
-  Wifi,
-  Users
+import React from 'react';
+import { 
+  Search, 
+  MapPin, 
+  ShieldCheck, 
+  Sparkles, 
+  CheckCircle2, 
+  Users, 
+  ArrowRight, 
+  PhoneCall,
+  Crown
 } from 'lucide-react';
-import {
-  MithilaLotusIcon,
-  MithilaPeacockIcon,
-  MithilaBorderStrip,
-  JanakiMandirSkyline
-} from './common/MithilaMotifs';
+import { JanakiMandirLogo, MithilaLotusIcon } from './common/MithilaMotifs';
+import { PWAInstallButton } from './PWAInstallButton';
 import { useRooms } from '../context/RoomContext';
-import { useAuth } from '../context/AuthContext';
 import { useContent } from '../context/ContentContext';
-import { RoomListing, ChowkLocation } from '../types';
-import { RoomCard } from './RoomCard';
+import { RoomListing } from '../types';
 
 interface HomePageProps {
-  onNavigateListings: (chowk?: string) => void;
+  onNavigate: (view: string, extraData?: any) => void;
   onSelectRoom: (room: RoomListing) => void;
-  onOpenAuth: (mode?: 'login' | 'signup') => void;
-  onNavigateAddRoom: () => void;
-  onNavigatePremium: () => void;
-  onOpenChat?: (conversationId: string) => void;
+  onOpenAuth: () => void;
 }
 
-export const HomePage: React.FC<HomePageProps> = ({
-  onNavigateListings,
-  onSelectRoom,
-  onOpenAuth,
-  onNavigateAddRoom,
-  onNavigatePremium,
-  onOpenChat
-}) => {
-  const { currentUser, isOwner } = useAuth();
-  const { rooms, chowks } = useRooms();
-  const { appContent, isFeatureVisible, premiumConfig } = useContent();
-  const [searchChowk, setSearchChowk] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+const CHOWKS = [
+  'Janaki Mandir',
+  'Bhanu Chowk',
+  'Ramanand Chowk',
+  'Shiva Chowk',
+  'Murali Chowk',
+  'Pidari Chowk',
+  'Mills Area',
+  'Station Road'
+];
 
-  // Featured rooms: public only (approved, not hidden, not deleted) with priority for verified gold
-  const featuredRooms = rooms
-    .filter((r) => !r.isHidden && !r.isDeleted && r.approvalStatus === 'approved' && (r.isFeatured || r.isOwnerPremium))
-    .slice(0, 4);
-  const availableRooms = rooms
-    .filter((r) => !r.isHidden && !r.isDeleted && r.approvalStatus === 'approved' && r.status === 'available')
-    .slice(0, 6);
-  const visibleChowks = chowks.filter((c) => !c.isHidden);
+export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onSelectRoom, onOpenAuth }) => {
+  const { rooms, loading } = useRooms();
+  const { activeFeatures } = useContent();
 
-  const handleHeroSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    onNavigateListings(searchChowk !== 'all' ? searchChowk : undefined);
-  };
+  const featuredRooms = rooms.filter(r => r.available).slice(0, 4);
 
   return (
-    <div className="space-y-12 sm:space-y-16 pb-16">
-      {/* Notice / Broadcast Banner from Database if configured */}
-      {((appContent.bannerActive && appContent.bannerText) || appContent.noticeText || (appContent.notices && appContent.notices.find((n) => !n.isHidden))) && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-300 text-amber-950 flex items-center justify-between gap-3 text-xs sm:text-sm font-semibold">
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-[11px] uppercase tracking-wider">
-                Notice
-              </span>
-              <span>
-                {appContent.bannerActive && appContent.bannerText
-                  ? appContent.bannerText
-                  : appContent.noticeText ||
-                    (appContent.notices && appContent.notices.find((n) => !n.isHidden)?.content) ||
-                    (appContent.notices && appContent.notices.find((n) => !n.isHidden)?.title)}
-              </span>
-            </div>
+    <div className="space-y-16 pb-20">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#fff7ed] via-[#fffdfa] to-[#faf7f2] border-b border-amber-200/60 pt-10 pb-16 sm:py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto text-center space-y-6 relative z-10">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-100/80 border border-amber-300 text-amber-900 text-xs font-semibold shadow-xs">
+            <Sparkles className="w-4 h-4 text-amber-600 animate-spin" />
+            <span>Mithila’s #1 Verified Rental Platform</span>
           </div>
-        </div>
-      )}
 
-      {/* 1. HERO SECTION - With Mithila Heritage & Janki Mandir Architecture */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-amber-500/10 via-orange-500/5 to-[#fbf9f5] border-b border-amber-200/80 pt-8 sm:pt-14 pb-14 sm:pb-20">
-        {/* Subtle Janaki Mandir Temple Skyline Ambient Backdrop */}
-        <div className="absolute inset-x-0 bottom-0 text-amber-700/15 pointer-events-none">
-          <JanakiMandirSkyline className="h-32 sm:h-44" />
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          
-          {/* Tagline Badge with Mithila Lotus */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/95 border border-amber-300/80 shadow-xs mb-6 backdrop-blur-xs">
-            <MithilaLotusIcon size={16} color="#ea580c" />
-            <span className="text-xs font-bold text-amber-950">
-              {appContent.heroBadge || "जनकपुरधामको आधिकारिक कोठा सेवा · Janakpur's #1 Rental Platform"}
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-stone-900 tracking-tight font-mithila">
+            Find Your Ideal Room in{' '}
+            <span className="bg-gradient-to-r from-amber-700 via-rose-700 to-amber-900 bg-clip-text text-transparent">
+              Janakpurdham
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-
-          {/* Main Display Headline */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-stone-900 font-heading max-w-4xl mx-auto leading-tight">
-            {appContent.heroTitle || (
-              <>
-                Find the Perfect Room in{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600">
-                  Janakpur
-                </span>{' '}
-                Without Middlemen
-              </>
-            )}
           </h1>
 
-          <p className="text-sm sm:text-lg text-stone-600 max-w-2xl mx-auto mt-4 font-normal leading-relaxed">
-            {appContent.heroSubtitle ||
-              'Direct connection between verified room owners and students, working professionals, and families across all iconic chowks of Janakpurdham.'}
+          <p className="text-base sm:text-lg text-stone-600 max-w-2xl mx-auto font-normal leading-relaxed">
+            Search verified single rooms, flats, and 2BHK apartments across all major chowks. 
+            Connect directly with verified owners with <strong>zero broker commission</strong>.
           </p>
 
-          {/* Direct Search Bar Box */}
-          {isFeatureVisible('search') && (
-            <div className="mt-8 sm:mt-10 max-w-3xl mx-auto bg-white p-3.5 rounded-3xl shadow-xl shadow-amber-900/5 border border-amber-200/90">
-              <form onSubmit={handleHeroSearch} className="flex flex-col sm:flex-row items-center gap-2.5">
-                
-                {/* Chowk Select */}
-                {isFeatureVisible('chowks') && (
-                  <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-amber-50/50 border border-amber-200/80 w-full sm:w-1/2 text-left focus-within:border-amber-400 transition-colors">
-                    <MapPin className="w-4 h-4 text-rose-600 shrink-0" />
-                    <div className="flex-1">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-amber-800/80">
-                        Location / Chowk
-                      </label>
-                      <select
-                        value={searchChowk}
-                        onChange={(e) => setSearchChowk(e.target.value)}
-                        className="w-full bg-transparent text-xs font-bold text-stone-900 outline-none cursor-pointer"
-                      >
-                        <option value="all">All Janakpur Chowks</option>
-                        {visibleChowks.map((c) => (
-                          <option key={c.id} value={c.name}>
-                            {c.name} {c.wardNo ? `(${c.wardNo})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
+          {/* Download App & Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <PWAInstallButton variant="hero" />
 
-                {/* Keyword / Room Type */}
-                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-amber-50/50 border border-amber-200/80 w-full sm:w-1/2 text-left focus-within:border-amber-400 transition-colors">
-                  <Search className="w-4 h-4 text-amber-600 shrink-0" />
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-amber-800/80">
-                      Search Keyword
-                    </label>
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="1BHK, student room, wifi..."
-                      className="w-full bg-transparent text-xs font-semibold text-stone-900 outline-none placeholder:text-stone-400"
-                    />
-                  </div>
-                </div>
+            <button
+              onClick={() => onNavigate('listings')}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-sm sm:text-base shadow-md transition active:scale-95 cursor-pointer w-full sm:w-auto"
+            >
+              <span>Explore All Rooms</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
 
-                {/* Search Submit Button */}
+          {/* Chowks quick selector */}
+          <div className="pt-6 max-w-3xl mx-auto">
+            <p className="text-xs font-bold text-amber-900/60 uppercase tracking-wider mb-3">
+              Popular Chowks in Janakpur
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {CHOWKS.map((c) => (
                 <button
-                  type="submit"
-                  className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600 hover:from-orange-700 hover:to-rose-700 text-white rounded-2xl font-bold text-xs shadow-md shadow-orange-600/25 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                  key={c}
+                  onClick={() => onNavigate('listings', { chowk: c })}
+                  className="px-3.5 py-1.5 rounded-full bg-white hover:bg-amber-100 border border-amber-200 text-stone-800 hover:text-amber-900 text-xs font-medium shadow-xs transition active:scale-95 cursor-pointer"
                 >
-                  <Search className="w-4 h-4" />
-                  Search Rooms
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* Popular Chowks Quick Row with Mithila styling */}
-          {isFeatureVisible('chowks') && (
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs">
-              <span className="text-amber-950 font-bold flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-rose-600" />
-                Popular Chowks:
-              </span>
-              {['Bhanu Chowk', 'Shiva Chowk', 'Ramanand Chowk', 'Murali Chowk', 'Hospital Road'].map((name) => (
-                <button
-                  key={name}
-                  onClick={() => onNavigateListings(name)}
-                  className="px-3.5 py-1.5 rounded-xl bg-white/95 hover:bg-amber-100/70 text-amber-950 border border-amber-200/80 font-semibold shadow-2xs transition-all cursor-pointer"
-                >
-                  {name}
+                  <MapPin className="w-3 h-3 inline text-amber-600 mr-1" />
+                  {c}
                 </button>
               ))}
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Home Page Authentication Buttons for Non-logged-in Guests */}
-          {!currentUser && (
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <span className="text-xs font-medium text-stone-500">
-                New to RoomSewa Janakpur?
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  id="home-login-btn"
-                  onClick={() => onOpenAuth('login')}
-                  className="px-5 py-2 text-xs font-bold text-amber-950 bg-white hover:bg-amber-50 border border-amber-300 rounded-xl shadow-xs transition-all cursor-pointer"
-                >
-                  Log In
-                </button>
-                <button
-                  id="home-signup-btn"
-                  onClick={() => onOpenAuth('signup')}
-                  className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600 hover:from-orange-700 hover:to-rose-700 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span>Sign Up</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
-
+        {/* Decorative Lotus in Background */}
+        <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none w-72 h-72">
+          <JanakiMandirLogo size={280} />
+        </div>
+        <div className="absolute -bottom-10 -left-10 opacity-5 pointer-events-none w-72 h-72">
+          <JanakiMandirLogo size={280} />
         </div>
       </section>
 
-      {/* 2. CHOWK SELECTOR CARDS */}
-      {isFeatureVisible('chowks') && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-100/90 text-amber-900 flex items-center justify-center shadow-xs">
-                <MithilaLotusIcon size={20} color="#ea580c" />
-              </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black text-stone-900 font-heading">
-                  Select Rooms by Janakpur Chowk
-                </h2>
-                <p className="text-xs sm:text-sm text-stone-600">
-                  Browse rooms situated directly in the heart of Janakpur's main neighborhoods
-                </p>
-              </div>
+      {/* Trust Highlights */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="p-6 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-4">
+            <div className="p-3 rounded-xl bg-amber-100 text-amber-800">
+              <ShieldCheck className="w-6 h-6" />
             </div>
-            <button
-              onClick={() => onNavigateListings()}
-              className="text-xs font-bold text-orange-700 hover:text-orange-800 flex items-center gap-1 cursor-pointer"
-            >
-              View All ({rooms.length})
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {chowks.slice(0, 6).map((c) => {
-              const count = rooms.filter(
-                (r) => !r.isHidden && !r.isDeleted && r.approvalStatus === 'approved' && r.chowk === c.name
-              ).length;
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => onNavigateListings(c.name)}
-                  className="p-3.5 bg-white rounded-2xl border border-amber-200/80 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group text-left relative overflow-hidden"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
-                    <MapPin className="w-4 h-4 text-rose-600" />
-                  </div>
-                  <h3 className="font-heading font-bold text-xs sm:text-sm text-stone-900 group-hover:text-orange-700 truncate">
-                    {c.name}
-                  </h3>
-                  <p className="text-[10px] text-stone-500 font-medium truncate mt-0.5">
-                    {count} available rooms
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* 3. FEATURED ROOMS (Verified Gold First) */}
-      {featuredRooms.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-                <Crown className="w-4 h-4 fill-amber-600 text-amber-600" />
-              </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black text-stone-900 font-heading">
-                  Featured & Verified Rooms
-                </h2>
-                <p className="text-xs sm:text-sm text-stone-600">
-                  Recommended listings from verified property owners in Janakpur
-                </p>
-              </div>
+            <div>
+              <h3 className="font-bold text-stone-900 text-base">Direct Owner Contact</h3>
+              <p className="text-xs text-stone-500 mt-1">Talk straight to property owners. No brokers, no hidden middleman fees.</p>
             </div>
-
-            <button
-              onClick={() => onNavigateListings()}
-              className="text-xs font-bold text-orange-700 hover:text-orange-800 flex items-center gap-1 cursor-pointer"
-            >
-              Browse All
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {featuredRooms.map((room) => (
-              <RoomCard
-                key={room.id}
-                room={room}
-                onSelect={onSelectRoom}
-                onOpenAuth={() => onOpenAuth('login')}
-                onOpenChat={onOpenChat}
-              />
-            ))}
+          <div className="p-6 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-4">
+            <div className="p-3 rounded-xl bg-rose-100 text-rose-800">
+              <MapPin className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-stone-900 text-base">Chowk-by-Chowk Verified</h3>
+              <p className="text-xs text-stone-500 mt-1">Every listing is mapped accurately to Janakpurdham's historic chowks.</p>
+            </div>
           </div>
-        </section>
-      )}
 
-      {/* 4. AVAILABLE ROOMS SECTION */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-6">
+          <div className="p-6 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-4">
+            <div className="p-3 rounded-xl bg-emerald-100 text-emerald-800">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-stone-900 text-base">Real-Time Firebase Sync</h3>
+              <p className="text-xs text-stone-500 mt-1">Instant updates on room availability, rent, and amenities without app restarts.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Rooms */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-stone-900 font-heading">
-              Recently Added Available Rooms
-            </h2>
-            <p className="text-xs sm:text-sm text-stone-600">
-              Vacant rooms, 1BHK flats, and student rooms ready to move in
-            </p>
+            <h2 className="text-2xl font-black text-stone-900 font-mithila">Featured Rooms &amp; Flats</h2>
+            <p className="text-xs sm:text-sm text-stone-500">Verified properties ready for immediate move-in</p>
           </div>
-
           <button
-            onClick={() => onNavigateListings()}
-            className="text-xs font-bold text-orange-700 hover:text-orange-800 flex items-center gap-1 cursor-pointer"
+            onClick={() => onNavigate('listings')}
+            className="text-xs sm:text-sm font-bold text-amber-800 hover:text-amber-900 flex items-center gap-1 cursor-pointer"
           >
-            See More Rooms
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>View All ({rooms.length})</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {availableRooms.map((room) => (
-            <RoomCard
-              key={room.id}
-              room={room}
-              onSelect={onSelectRoom}
-              onOpenAuth={() => onOpenAuth('login')}
-              onOpenChat={onOpenChat}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-64 rounded-2xl bg-stone-200 animate-pulse" />
+            ))}
+          </div>
+        ) : featuredRooms.length === 0 ? (
+          <div className="p-12 text-center bg-white rounded-2xl border border-stone-200">
+            <p className="text-stone-500 text-sm">No rooms currently listed. Be the first to post!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredRooms.map(room => (
+              <div
+                key={room.id}
+                onClick={() => onSelectRoom(room)}
+                className="group bg-white rounded-2xl overflow-hidden border border-stone-200 shadow-xs hover:shadow-lg transition cursor-pointer flex flex-col"
+              >
+                <div className="relative h-44 bg-stone-100 overflow-hidden">
+                  <img
+                    src={room.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80'}
+                    alt={room.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                  />
+                  <div className="absolute top-3 left-3 bg-black/60 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur">
+                    {room.chowk}
+                  </div>
+                  {room.isPremium && (
+                    <div className="absolute top-3 right-3 bg-amber-500 text-white p-1 rounded-full shadow">
+                      <Crown className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 flex-1 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-bold text-stone-900 text-sm line-clamp-1 group-hover:text-amber-800 transition">
+                      {room.title}
+                    </h3>
+                    <p className="text-xs text-stone-500 mt-1 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                      <span className="truncate">{room.address}</span>
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-base font-extrabold text-rose-800">
+                        Rs. {room.rent.toLocaleString()}
+                      </span>
+                      <span className="text-[10px] text-stone-400"> /mo</span>
+                    </div>
+
+                    <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
+                      View Details
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* Dynamic Frequently Asked Questions from Database */}
-      {appContent.faqs && appContent.faqs.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-3xl p-8 sm:p-10 border border-amber-200/80 shadow-xs">
-            <div className="max-w-2xl mb-8">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-orange-700">
-                Help & Guidelines
-              </span>
-              <h2 className="text-2xl font-black text-stone-900 font-heading mt-1">
-                Frequently Asked Questions
-              </h2>
-              <p className="text-xs sm:text-sm text-stone-600 mt-1">
-                Everything you need to know about renting rooms and flats in Janakpurdham.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {appContent.faqs.map((faq, idx) => (
-                <div key={faq.id || idx} className="p-5 rounded-2xl bg-amber-50/40 border border-amber-200/60 space-y-2">
-                  <h3 className="text-sm font-bold text-stone-900 flex items-start gap-2">
-                    <span className="text-orange-700 shrink-0 font-extrabold font-mono">Q.</span>
-                    {faq.question}
-                  </h3>
-                  <p className="text-xs text-stone-600 leading-relaxed pl-5">
-                    {faq.answer}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* 5. OWNER CALLOUT: LIST YOUR ROOM & LIFETIME PREMIUM - Mithila Terracotta & Bronze */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-br from-[#2a1309] via-[#3a180b] to-[#1a0b04] border border-amber-500/30 rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden shadow-2xl">
-          {/* Subtle Aripan Frieze at top of Callout */}
-          <div className="absolute top-0 inset-x-0 opacity-40">
-            <MithilaBorderStrip variant="cream" />
-          </div>
-
-          <div className="relative z-10 max-w-2xl">
-            {isFeatureVisible('premium') && premiumConfig.enabled && (
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-amber-400 text-stone-950 font-bold text-xs mb-4 shadow-xs">
-                <Crown className="w-3.5 h-3.5 fill-stone-950" />
-                Room Owners in Janakpur
-              </div>
-            )}
-            <h2 className="text-2xl sm:text-4xl font-black font-heading leading-tight">
-              Have an empty room or flat in Janakpur?
+      {/* Dynamic Amenities Section (Synced directly from Firestore via ContentContext) */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="bg-[#fffdfa] rounded-3xl p-6 sm:p-10 border border-amber-200 shadow-xs space-y-6">
+          <div className="text-center max-w-xl mx-auto">
+            <h2 className="text-xl sm:text-2xl font-bold text-stone-900 font-mithila">
+              Standard Amenities Available
             </h2>
-            <p className="text-xs sm:text-sm text-amber-100/90 mt-2 leading-relaxed">
-              List your room for free{isFeatureVisible('premium') && premiumConfig.enabled ? ` or upgrade to Lifetime Premium for Rs ${premiumConfig.priceNPR || 200} to get unlimited listings, verified gold badges, and priority search visibility across Janakpur.` : ' and reach thousands of seekers in Janakpur.'}
+            <p className="text-xs sm:text-sm text-stone-500 mt-1">
+              Properties in RoomSewa Janakpur include top amenities managed and verified directly by the community.
             </p>
+          </div>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              {isFeatureVisible('room_listing') && (
-                <button
-                  onClick={onNavigateAddRoom}
-                  className="px-6 py-3 rounded-xl bg-white text-stone-950 font-bold text-xs hover:bg-amber-50 shadow-md transition-all cursor-pointer"
-                >
-                  List Your Room (Owners)
-                </button>
-              )}
-              {!currentUser ? (
-                <>
-                  <button
-                    id="home-cta-signup-btn"
-                    onClick={() => onOpenAuth('signup')}
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>Sign Up Free</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    id="home-cta-login-btn"
-                    onClick={() => onOpenAuth('login')}
-                    className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-amber-300/30 backdrop-blur-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    Log In
-                  </button>
-                </>
-              ) : isOwner && isFeatureVisible('premium') && premiumConfig.enabled ? (
-                <button
-                  id="homepage-premium-btn"
-                  onClick={onNavigatePremium}
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Crown className="w-3.5 h-3.5 fill-stone-950" />
-                  Owner Premium Dashboard
-                </button>
-              ) : (
-                <button
-                  onClick={() => onNavigateListings()}
-                  className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-amber-300/30 backdrop-blur-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Search className="w-3.5 h-3.5 text-amber-300" />
-                  Browse Available Rooms
-                </button>
-              )}
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+            {activeFeatures.map(f => (
+              <div 
+                key={f.id}
+                className="p-3.5 rounded-xl bg-white border border-amber-200/80 shadow-xs flex items-center gap-2.5"
+              >
+                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold shrink-0">
+                  <CheckCircle2 className="w-4 h-4 text-amber-700" />
+                </div>
+                <span className="text-xs font-semibold text-stone-800">{f.name}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>

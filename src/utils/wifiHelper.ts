@@ -16,11 +16,13 @@ export function getRoomWifiDetails(room: {
   const wifiFeat = cf['feature-wifi'] ?? cf['Wi-Fi Internet'] ?? cf['Wi-Fi'] ?? cf['wifi'];
   const facilitiesFeat = cf['feature-facilities'] ?? cf['Facilities & Amenities'];
 
-  let isAvailable = Boolean(room.wifiAvailable);
-  let price: number | null =
-    room.wifiCharge !== undefined && room.wifiCharge !== null && room.wifiCharge !== '' && !isNaN(Number(room.wifiCharge))
-      ? Number(room.wifiCharge)
-      : null;
+  let price: number | null = null;
+  const rawDirectPrice = room.wifiCharge ?? cf['wifiCharge'] ?? cf['feature-wifi-charge'];
+  if (rawDirectPrice !== undefined && rawDirectPrice !== null && rawDirectPrice !== '' && !isNaN(Number(rawDirectPrice))) {
+    price = Number(rawDirectPrice);
+  }
+
+  let isAvailable = Boolean(room.wifiAvailable) || (price !== null && price > 0);
 
   // 1. Check dedicated Wi-Fi feature
   if (wifiFeat !== undefined && wifiFeat !== null) {
@@ -36,9 +38,13 @@ export function getRoomWifiDetails(room: {
 
       if (wifiFeat.price !== undefined && wifiFeat.price !== null && wifiFeat.price !== '' && !isNaN(Number(wifiFeat.price))) {
         price = Number(wifiFeat.price);
+        isAvailable = true;
       }
     } else if (typeof wifiFeat === 'boolean') {
       isAvailable = wifiFeat;
+    } else if (typeof wifiFeat === 'number' && wifiFeat > 0) {
+      price = wifiFeat;
+      isAvailable = true;
     } else if (typeof wifiFeat === 'string') {
       isAvailable =
         wifiFeat === 'Available' ||
@@ -68,6 +74,10 @@ export function getRoomWifiDetails(room: {
     }
   }
 
+  if (price !== null && price > 0) {
+    isAvailable = true;
+  }
+
   // 3. Format display texts
   let priceText = '';
   let displayText = '';
@@ -75,11 +85,11 @@ export function getRoomWifiDetails(room: {
   if (!isAvailable) {
     displayText = 'Not Available';
   } else if (price !== null && price > 0) {
-    priceText = `Rs. ${price.toLocaleString()}/month`;
-    displayText = `Available — Rs. ${price.toLocaleString()}/month`;
+    priceText = `NPR ${price.toLocaleString()}/month`;
+    displayText = `Available — NPR ${price.toLocaleString()}/month`;
   } else {
-    priceText = 'Free / Included';
-    displayText = 'Available — Free / Included';
+    priceText = 'Included';
+    displayText = 'Included';
   }
 
   return {

@@ -1,519 +1,263 @@
 import React, { useState, useMemo } from 'react';
-import {
-  Search,
-  MapPin,
-  Filter,
-  SlidersHorizontal,
-  Droplets,
-  Zap,
-  Wifi,
-  GraduationCap,
-  Sparkles,
-  ArrowUpDown,
-  X,
-  Building,
-  CheckCircle2,
-  Crown
-} from 'lucide-react';
+import { Search, MapPin, Filter, Crown, Check, X, SlidersHorizontal } from 'lucide-react';
 import { useRooms } from '../context/RoomContext';
 import { useContent } from '../context/ContentContext';
-import { RoomListing, RoomType } from '../types';
-import { RoomCard } from './RoomCard';
+import { RoomListing } from '../types';
 
 interface RoomListingsViewProps {
   initialChowk?: string;
   onSelectRoom: (room: RoomListing) => void;
-  onOpenAuth?: () => void;
-  onOpenChat?: (conversationId: string) => void;
 }
 
-const ROOM_TYPES: RoomType[] = [
-  'Single Room',
-  'Double Room',
-  '1BHK',
-  '2BHK',
-  'Flat',
-  'Hostel/Bed'
+const CHOWKS = [
+  'All',
+  'Janaki Mandir',
+  'Bhanu Chowk',
+  'Ramanand Chowk',
+  'Shiva Chowk',
+  'Murali Chowk',
+  'Pidari Chowk',
+  'Mills Area',
+  'Station Road'
 ];
 
-export const RoomListingsView: React.FC<RoomListingsViewProps> = ({
-  initialChowk = 'all',
-  onSelectRoom,
-  onOpenAuth,
-  onOpenChat
-}) => {
-  const { rooms, chowks, loadingRooms } = useRooms();
-  const { isFeatureVisible } = useContent();
+export const RoomListingsView: React.FC<RoomListingsViewProps> = ({ initialChowk = 'all', onSelectRoom }) => {
+  const { rooms, loading } = useRooms();
+  const { activeFeatures } = useContent();
 
-  // Filter States
-  const [selectedChowk, setSelectedChowk] = useState<string>(initialChowk);
-  const [selectedRoomType, setSelectedRoomType] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'rented'>('all');
-  const [maxRent, setMaxRent] = useState<number>(25000);
-  const [studentsOnly, setStudentsOnly] = useState<boolean>(false);
-  const [waterFilter, setWaterFilter] = useState<string>('all');
-  const [electricityFilter, setElectricityFilter] = useState<string>('all');
-  const [wifiRequired, setWifiRequired] = useState<boolean>(false);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [verifiedFilter, setVerifiedFilter] = useState<'all' | 'verified'>('all');
-  const [sortBy, setSortBy] = useState<'recommended' | 'price-low' | 'price-high' | 'newest' | 'verified'>('recommended');
-  const [mobileFilterOpen, setMobileFilterOpen] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedChowk, setSelectedChowk] = useState(
+    initialChowk.toLowerCase() === 'all' ? 'All' : initialChowk
+  );
+  const [selectedType, setSelectedType] = useState('all');
+  const [maxRent, setMaxRent] = useState<number>(30000);
+  const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
+  const [showFiltersMobile, setShowFiltersMobile] = useState(false);
 
-  // Compute filtered rooms
-  const visibleChowks = useMemo(() => chowks.filter((c) => !c.isHidden), [chowks]);
-
-  const filteredRooms = useMemo(() => {
-    return rooms.filter((room) => {
-      // Critical Public Visibility Rule:
-      // Never show hidden, deleted, pending-approval, or rejected rooms in public listings
-      if (room.isHidden || room.isDeleted || room.approvalStatus !== 'approved') {
-        return false;
-      }
-
-      // Chowk filter
-      if (selectedChowk !== 'all' && room.chowk !== selectedChowk) {
-        return false;
-      }
-
-      // Room Type
-      if (selectedRoomType !== 'all' && room.roomType !== selectedRoomType) {
-        return false;
-      }
-
-      // Available / Rented Status
-      if (statusFilter !== 'all' && room.status !== statusFilter) {
-        return false;
-      }
-
-      // Verified Status Filter
-      if (verifiedFilter === 'verified' && !room.isOwnerPremium && !room.isFeatured) {
-        return false;
-      }
-
-      // Max Rent
-      if (room.rentPerMonth > maxRent) {
-        return false;
-      }
-
-      // Students Allowed
-      if (studentsOnly && !room.studentsAllowed) {
-        return false;
-      }
-
-      // Water Supply
-      if (waterFilter !== 'all' && room.waterFacility !== waterFilter) {
-        return false;
-      }
-
-      // Electricity
-      if (electricityFilter !== 'all' && room.electricityFacility !== electricityFilter) {
-        return false;
-      }
-
-      // Wi-Fi
-      if (wifiRequired && !room.wifiAvailable) {
-        return false;
-      }
-
-      // Search keyword
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase();
-        const matchesTitle = room.title.toLowerCase().includes(q);
-        const matchesChowk = room.chowk.toLowerCase().includes(q);
-        const matchesDesc = room.description.toLowerCase().includes(q);
-        const matchesOwner = room.ownerName.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesChowk && !matchesDesc && !matchesOwner) {
-          return false;
-        }
-      }
-
-      return true;
-    }).sort((a, b) => {
-      // Verified Status First
-      if (sortBy === 'verified') {
-        const aVerified = a.isOwnerPremium || a.isFeatured;
-        const bVerified = b.isOwnerPremium || b.isFeatured;
-        if (aVerified && !bVerified) return -1;
-        if (!aVerified && bVerified) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      // Price (Low to High)
-      if (sortBy === 'price-low') {
-        return a.rentPerMonth - b.rentPerMonth;
-      }
-      // Price (High to Low)
-      if (sortBy === 'price-high') {
-        return b.rentPerMonth - a.rentPerMonth;
-      }
-      // Newest Arrival
-      if (sortBy === 'newest') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      // Recommended / Featured
-      if (sortBy === 'recommended') {
-        if (a.isOwnerPremium && !b.isOwnerPremium) return -1;
-        if (!a.isOwnerPremium && b.isOwnerPremium) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      return 0;
-    });
-  }, [
-    rooms,
-    selectedChowk,
-    selectedRoomType,
-    statusFilter,
-    verifiedFilter,
-    maxRent,
-    studentsOnly,
-    waterFilter,
-    electricityFilter,
-    wifiRequired,
-    searchTerm,
-    sortBy
-  ]);
-
-  const resetFilters = () => {
-    setSelectedChowk('all');
-    setSelectedRoomType('all');
-    setStatusFilter('all');
-    setVerifiedFilter('all');
-    setMaxRent(25000);
-    setStudentsOnly(false);
-    setWaterFilter('all');
-    setElectricityFilter('all');
-    setWifiRequired(false);
-    setSearchTerm('');
-    setSortBy('recommended');
+  const toggleFacility = (name: string) => {
+    setSelectedFacilities(prev => 
+      prev.includes(name) ? prev.filter(f => f !== name) : [...prev, name]
+    );
   };
 
-  const activeFilterCount = [
-    selectedChowk !== 'all',
-    selectedRoomType !== 'all',
-    statusFilter !== 'all',
-    verifiedFilter !== 'all',
-    maxRent < 25000,
-    studentsOnly,
-    waterFilter !== 'all',
-    electricityFilter !== 'all',
-    wifiRequired,
-    searchTerm.trim().length > 0
-  ].filter(Boolean).length;
+  const filteredRooms = useMemo(() => {
+    return rooms.filter(room => {
+      // Chowk filter
+      if (selectedChowk !== 'All' && room.chowk.toLowerCase() !== selectedChowk.toLowerCase()) {
+        return false;
+      }
+      // Type filter
+      if (selectedType !== 'all' && room.roomType !== selectedType) {
+        return false;
+      }
+      // Rent filter
+      if (room.rent > maxRent) {
+        return false;
+      }
+      // Facilities filter
+      if (selectedFacilities.length > 0) {
+        const hasAll = selectedFacilities.every(f => room.facilities?.includes(f));
+        if (!hasAll) return false;
+      }
+      // Query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesTitle = room.title.toLowerCase().includes(q);
+        const matchesAddress = room.address.toLowerCase().includes(q);
+        const matchesChowk = room.chowk.toLowerCase().includes(q);
+        if (!matchesTitle && !matchesAddress && !matchesChowk) return false;
+      }
+      return true;
+    });
+  }, [rooms, selectedChowk, selectedType, maxRent, selectedFacilities, searchQuery]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Top Header & Search Bar */}
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-          Explore Rooms & Flats in Janakpur
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Showing {filteredRooms.length} available & rented listings across Janakpurdham's popular chowks
-        </p>
-
-        {/* Global Search & Quick Chowk Pills */}
-        <div className="mt-4 flex flex-col md:flex-row gap-3 items-stretch">
-          {isFeatureVisible('search') && (
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by Chowk, Ward, Room type, or keywords..."
-                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 bg-white focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none text-sm font-medium"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            {/* Sort selector */}
-            <div className="flex items-center gap-1.5 bg-white px-3 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold text-slate-700 shrink-0">
-              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-              <label htmlFor="sort-listings-select" className="text-slate-500 font-bold hidden sm:inline">Sort:</label>
-              <select
-                id="sort-listings-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-transparent outline-none cursor-pointer font-bold text-slate-900"
-              >
-                <option value="price-low">Price: Low to High</option>
-                <option value="newest">Newest Arrival</option>
-                {isFeatureVisible('premium') && <option value="verified">Verified Status (Gold First)</option>}
-                <option value="recommended">Featured & Recommended</option>
-                <option value="price-high">Price: High to Low</option>
-              </select>
-            </div>
-
-            {/* Mobile Filter Toggle Button */}
-            {isFeatureVisible('filters') && (
-              <button
-                onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
-                className="md:hidden flex items-center gap-1.5 px-4 py-3 bg-slate-900 text-white rounded-2xl text-xs font-bold shrink-0"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
-              </button>
-            )}
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-stone-900 font-mithila">
+            Verified Rooms in Janakpur
+          </h1>
+          <p className="text-xs sm:text-sm text-stone-500">
+            Showing {filteredRooms.length} of {rooms.length} available listings
+          </p>
         </div>
 
-        {/* Quick Chowks Scroll Strip */}
-        {isFeatureVisible('chowks') && (
-          <div className="flex items-center gap-2 overflow-x-auto pt-3 pb-1">
-            <button
-              onClick={() => setSelectedChowk('all')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
-                selectedChowk === 'all'
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              All Janakpur
-            </button>
-            {visibleChowks.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedChowk(c.name)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
-                  selectedChowk === c.name
-                    ? 'bg-indigo-600 text-white font-bold'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                {c.name}
-              </button>
-            ))}
+        {/* Search Input */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 sm:w-80">
+            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by street, chowk, or title..."
+              className="w-full pl-9 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500 shadow-xs"
+            />
           </div>
-        )}
+
+          <button
+            onClick={() => setShowFiltersMobile(!showFiltersMobile)}
+            className="md:hidden p-2 rounded-xl bg-white border border-stone-200 text-stone-700 hover:bg-stone-50"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Main Content: Left Filters Sidebar + Right Grid */}
-      <div className={`grid grid-cols-1 ${isFeatureVisible('filters') ? 'md:grid-cols-4' : 'md:grid-cols-1'} gap-6 items-start`}>
-        {/* FILTERS SIDEBAR (Desktop & Mobile Modal) */}
-        {isFeatureVisible('filters') && (
-          <div
-            className={`bg-white rounded-3xl border border-slate-200 p-5 shadow-xs md:sticky md:top-24 space-y-5 ${
-              mobileFilterOpen ? 'block' : 'hidden md:block'
-            }`}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                <Filter className="w-3.5 h-3.5 text-indigo-600" />
-                Filter Listings
-              </span>
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={resetFilters}
-                  className="text-[11px] font-semibold text-rose-600 hover:underline"
-                >
-                  Reset All
-                </button>
-              )}
-            </div>
-
-            {/* 1. Chowk / Location */}
-            {isFeatureVisible('chowks') && (
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Chowk / Location
-                </label>
-                <select
-                  value={selectedChowk}
-                  onChange={(e) => setSelectedChowk(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-800"
-                >
-                  <option value="all">All Locations</option>
-                  {visibleChowks.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name} {c.wardNo ? `(${c.wardNo})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-          {/* 2. Room Type */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Filters Sidebar */}
+        <div className={`space-y-6 bg-white p-5 rounded-2xl border border-stone-200 shadow-xs h-fit ${
+          showFiltersMobile ? 'block' : 'hidden md:block'
+        }`}>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Room Type
-            </label>
+            <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Chowk Location</h3>
             <select
-              value={selectedRoomType}
-              onChange={(e) => setSelectedRoomType(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-800"
+              value={selectedChowk}
+              onChange={(e) => setSelectedChowk(e.target.value)}
+              className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
             >
-              <option value="all">All Types</option>
-              {ROOM_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+              {CHOWKS.map(c => (
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
 
-          {/* 3. Availability Status (Available vs Rented) */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Status
-            </label>
-            <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl">
-              {(['all', 'available', 'rented'] as const).map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setStatusFilter(st)}
-                  className={`py-1.5 text-[11px] font-bold rounded-lg uppercase tracking-wider transition-colors ${
-                    statusFilter === st
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  {st}
-                </button>
-              ))}
-            </div>
+            <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Room Type</h3>
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+            >
+              <option value="all">All Room Types</option>
+              <option value="single">Single Room</option>
+              <option value="double">Double Room</option>
+              <option value="1bhk">1 BHK Flat</option>
+              <option value="2bhk">2 BHK Flat</option>
+              <option value="flat">Full Flat / House</option>
+              <option value="commercial">Commercial Space</option>
+            </select>
           </div>
 
-          {/* 4. Verified Owner Filter */}
-          {isFeatureVisible('premium') && (
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center justify-between">
-                <span>Verified Status</span>
-                <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              </label>
-              <select
-                id="verified-filter-select"
-                value={verifiedFilter}
-                onChange={(e) => setVerifiedFilter(e.target.value as any)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-800"
-              >
-                <option value="all">All Rooms (Standard & Gold)</option>
-                <option value="verified">Verified Owners Only (Gold Badge)</option>
-              </select>
-            </div>
-          )}
-
-          {/* 4. Maximum Monthly Rent Slider */}
           <div>
-            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            <div className="flex items-center justify-between text-xs font-bold text-stone-700 mb-1">
               <span>Max Rent</span>
-              <span className="text-indigo-700 font-extrabold font-heading">
-                Rs {maxRent.toLocaleString()}
-              </span>
+              <span className="text-rose-800 font-extrabold">Rs. {maxRent.toLocaleString()}</span>
             </div>
             <input
               type="range"
-              min={1500}
-              max={25000}
-              step={500}
+              min={2000}
+              max={40000}
+              step={1000}
               value={maxRent}
               onChange={(e) => setMaxRent(Number(e.target.value))}
-              className="w-full accent-indigo-600 cursor-pointer"
+              className="w-full accent-amber-600"
             />
-            <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-1">
-              <span>Rs 1,500</span>
-              <span>Rs 25,000+</span>
+          </div>
+
+          {/* Dynamic Amenities from Firestore */}
+          <div>
+            <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2.5">
+              Desired Amenities
+            </h3>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {activeFeatures.map(f => {
+                const checked = selectedFacilities.includes(f.name);
+                return (
+                  <label
+                    key={f.id}
+                    onClick={() => toggleFacility(f.name)}
+                    className={`flex items-center gap-2 p-2 rounded-lg text-xs font-medium cursor-pointer transition ${
+                      checked ? 'bg-amber-100 text-amber-900' : 'text-stone-700 hover:bg-stone-50'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-md border flex items-center justify-center ${
+                      checked ? 'bg-amber-600 border-amber-600 text-white' : 'border-stone-300'
+                    }`}>
+                      {checked && <Check className="w-3 h-3" />}
+                    </div>
+                    <span>{f.name}</span>
+                  </label>
+                );
+              })}
             </div>
-          </div>
-
-          {/* 5. Water Facility */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Water Facility
-            </label>
-            <select
-              value={waterFilter}
-              onChange={(e) => setWaterFilter(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-800"
-            >
-              <option value="all">Any Water Facility</option>
-              <option value="24/7 Supply">24/7 Supply</option>
-              <option value="Morning/Evening">Morning/Evening</option>
-              <option value="Handpump / Boring">Handpump / Boring</option>
-            </select>
-          </div>
-
-          {/* 6. Electricity Facility */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Electricity
-            </label>
-            <select
-              value={electricityFilter}
-              onChange={(e) => setElectricityFilter(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-800"
-            >
-              <option value="all">Any Electricity Option</option>
-              <option value="Separate Meter">Separate Meter</option>
-              <option value="24 Hours / Inverter">24 Hours / Inverter</option>
-              <option value="Shared Bill">Shared Bill</option>
-            </select>
-          </div>
-
-          {/* 7. Checkboxes: Students only & Wi-Fi */}
-          <div className="space-y-2 pt-2 border-t border-slate-100">
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={studentsOnly}
-                onChange={(e) => setStudentsOnly(e.target.checked)}
-                className="rounded text-indigo-600"
-              />
-              <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
-              Students Allowed Only
-            </label>
-
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={wifiRequired}
-                onChange={(e) => setWifiRequired(e.target.checked)}
-                className="rounded text-indigo-600"
-              />
-              <Wifi className="w-3.5 h-3.5 text-emerald-600" />
-              High Speed Wi-Fi
-            </label>
           </div>
         </div>
-      )}
 
-      {/* LISTINGS GRID (3 Columns on Desktop) */}
-      <div className={`${isFeatureVisible('filters') ? 'md:col-span-3' : 'md:col-span-1'} space-y-4`}>
-          {loadingRooms ? (
-            <div className="p-16 text-center text-slate-400">
-              <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-              <p className="text-xs">Loading verified Janakpur rooms...</p>
+        {/* Listings Grid */}
+        <div className="md:col-span-3">
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="h-64 rounded-2xl bg-stone-200 animate-pulse" />
+              ))}
             </div>
           ) : filteredRooms.length === 0 ? (
-            <div className="p-16 text-center bg-white rounded-3xl border border-slate-200">
-              <Building className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-base font-bold text-slate-800">No rooms match your filters</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
-                Try widening your rent range or clearing some facility filters to see rooms in Janakpur.
-              </p>
+            <div className="p-12 text-center bg-white rounded-2xl border border-stone-200">
+              <p className="text-stone-600 font-semibold text-sm">No rooms match your filter criteria.</p>
               <button
-                onClick={resetFilters}
-                className="px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
+                onClick={() => {
+                  setSelectedChowk('All');
+                  setSelectedType('all');
+                  setMaxRent(30000);
+                  setSelectedFacilities([]);
+                  setSearchQuery('');
+                }}
+                className="mt-3 text-xs font-bold text-amber-800 underline cursor-pointer"
               >
-                Clear All Filters
+                Reset all filters
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredRooms.map((room) => (
-                <RoomCard
+              {filteredRooms.map(room => (
+                <div
                   key={room.id}
-                  room={room}
-                  onSelect={onSelectRoom}
-                  onOpenAuth={onOpenAuth}
-                  onOpenChat={onOpenChat}
-                />
+                  onClick={() => onSelectRoom(room)}
+                  className="group bg-white rounded-2xl overflow-hidden border border-stone-200 shadow-xs hover:shadow-lg transition cursor-pointer flex flex-col"
+                >
+                  <div className="relative h-44 bg-stone-100 overflow-hidden">
+                    <img
+                      src={room.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80'}
+                      alt={room.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    />
+                    <div className="absolute top-3 left-3 bg-black/60 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur">
+                      {room.chowk}
+                    </div>
+                    {room.isPremium && (
+                      <div className="absolute top-3 right-3 bg-amber-500 text-white p-1 rounded-full shadow">
+                        <Crown className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold text-stone-900 text-sm line-clamp-1 group-hover:text-amber-800 transition">
+                        {room.title}
+                      </h3>
+                      <p className="text-xs text-stone-500 mt-1 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                        <span className="truncate">{room.address}</span>
+                      </p>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
+                      <div>
+                        <span className="text-base font-extrabold text-rose-800">
+                          Rs. {room.rent.toLocaleString()}
+                        </span>
+                        <span className="text-[10px] text-stone-400"> /mo</span>
+                      </div>
+
+                      <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
+                        View
+                      </span>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}

@@ -1,260 +1,39 @@
 {
   "entities": {
-    "UserProfile": {
-      "title": "UserProfile",
-      "description": "User account information, profile details, and role",
-      "type": "object",
-      "properties": {
-        "uid": { "type": "string", "description": "Unique user ID" },
-        "email": { "type": "string", "description": "User email address" },
-        "displayName": { "type": "string", "description": "User public display name" },
-        "photoURL": { "type": "string", "description": "Avatar photo URL" },
-        "role": { "type": "string", "enum": ["seeker", "owner", "admin"], "description": "System role" },
-        "phone": { "type": "string", "description": "Contact phone number" },
-        "isPremium": { "type": "boolean", "description": "Whether user has verified premium membership" },
-        "createdAt": { "type": "string", "description": "ISO timestamp of account creation" }
-      },
-      "required": ["uid", "email", "role", "createdAt"]
+    "rooms": {
+      "fields": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "chowk": { "type": "string" },
+        "address": { "type": "string" },
+        "rent": { "type": "number" },
+        "roomType": { "type": "string" },
+        "available": { "type": "boolean" },
+        "facilities": { "type": "array" },
+        "images": { "type": "array" },
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "ownerPhone": { "type": "string" },
+        "isPremium": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      }
     },
-    "RoomListing": {
-      "title": "RoomListing",
-      "description": "Rental property listing in Janakpur",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Listing unique ID" },
-        "title": { "type": "string", "description": "Title of the rental" },
-        "roomType": { "type": "string", "description": "Type of room e.g. Single, 1BHK, Flat" },
-        "chowk": { "type": "string", "description": "Janakpur chowk/area name" },
-        "wardNo": { "type": "string", "description": "Ward number" },
-        "exactAddress": { "type": "string", "description": "Exact street/house landmark" },
-        "rentPerMonth": { "type": "number", "description": "Monthly rent in NPR" },
-        "ownerId": { "type": "string", "description": "Owner user UID" },
-        "ownerName": { "type": "string", "description": "Owner display name" },
-        "ownerPhone": { "type": "string", "description": "Owner contact number" },
-        "status": { "type": "string", "enum": ["available", "rented"], "description": "Availability status" },
-        "approvalStatus": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Admin approval status" },
-        "editStatus": { "type": "string", "enum": ["none", "pending", "approved", "rejected"], "description": "Status of owner's submitted edit" },
-        "pendingEdit": { "type": "object", "description": "Pending edited fields awaiting admin review and approval" },
-        "lastEditSubmittedAt": { "type": "string", "description": "ISO timestamp of when edit was submitted" },
-        "lastEditRejectionReason": { "type": "string", "description": "Reason provided by admin if edit was rejected" },
-        "createdAt": { "type": "string", "description": "ISO creation timestamp" }
-      },
-      "required": ["id", "title", "roomType", "chowk", "rentPerMonth", "ownerId", "status", "createdAt"]
+    "features": {
+      "fields": {
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "category": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      }
     },
-    "ChowkLocation": {
-      "title": "ChowkLocation",
-      "description": "Known Janakpur Chowk or neighborhood",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Chowk slug or ID" },
-        "name": { "type": "string", "description": "Display name of the chowk" },
-        "wardNo": { "type": "string", "description": "Ward number" },
-        "popularLandmark": { "type": "string", "description": "Key nearby landmark" }
-      },
-      "required": ["id", "name"]
-    },
-    "InterestedInquiry": {
-      "title": "InterestedInquiry",
-      "description": "Seeker inquiry for a room",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Inquiry document ID" },
-        "roomId": { "type": "string", "description": "Target room ID" },
-        "seekerId": { "type": "string", "description": "Seeker UID" },
-        "seekerName": { "type": "string", "description": "Seeker name" },
-        "seekerPhone": { "type": "string", "description": "Seeker phone" },
-        "message": { "type": "string", "description": "Inquiry text" },
-        "createdAt": { "type": "string", "description": "ISO timestamp" }
-      },
-      "required": ["roomId", "seekerName", "seekerPhone", "createdAt"]
-    },
-    "PremiumRequest": {
-      "title": "PremiumRequest",
-      "description": "Owner upgrade request for verified badge with mandatory payment screenshot",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Request document ID" },
-        "userId": { "type": "string", "description": "Requesting owner UID" },
-        "userEmail": { "type": "string", "description": "Requesting owner email" },
-        "userName": { "type": "string", "description": "Requesting owner name" },
-        "paymentMethod": { "type": "string", "description": "eSewa, Khalti, Bank, Cash" },
-        "transactionReference": { "type": "string", "description": "Transaction reference or transfer remarks" },
-        "proofImageUrl": { "type": "string", "description": "Direct file uploaded payment screenshot" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Review status" },
-        "requestedAt": { "type": "string", "description": "ISO timestamp" }
-      },
-      "required": ["id", "userId", "paymentMethod", "proofImageUrl", "status", "requestedAt"]
-    },
-    "SavedRoom": {
-      "title": "SavedRoom",
-      "description": "User bookmarked or saved room listing",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Saved record ID" },
-        "userId": { "type": "string", "description": "User UID who saved the room" },
-        "roomId": { "type": "string", "description": "Saved room listing ID" },
-        "savedAt": { "type": "string", "description": "ISO timestamp" }
-      },
-      "required": ["userId", "roomId"]
-    },
-    "Conversation": {
-      "title": "Conversation",
-      "description": "Direct room chat or Admin support thread",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Conversation ID" },
-        "type": { "type": "string", "enum": ["direct", "support"], "description": "Conversation category" },
-        "participants": { "type": "array", "description": "List of participant UIDs" },
-        "lastMessage": { "type": "string", "description": "Preview text of latest message" },
-        "lastMessageTime": { "type": "string", "description": "ISO timestamp of latest message" },
-        "createdAt": { "type": "string", "description": "ISO creation timestamp" },
-        "updatedAt": { "type": "string", "description": "ISO update timestamp" }
-      },
-      "required": ["id", "type", "participants", "createdAt", "updatedAt"]
-    },
-    "ChatMessage": {
-      "title": "ChatMessage",
-      "description": "Individual message inside a conversation",
-      "type": "object",
-      "properties": {
-        "conversationId": { "type": "string", "description": "Parent conversation ID" },
-        "senderId": { "type": "string", "description": "Sender UID or admin" },
-        "senderName": { "type": "string", "description": "Display name of sender" },
-        "text": { "type": "string", "description": "Message textual body" },
-        "type": { "type": "string", "enum": ["text", "image", "voice"], "description": "Payload kind" },
-        "createdAt": { "type": "string", "description": "ISO creation timestamp" }
-      },
-      "required": ["conversationId", "senderId", "text", "type", "createdAt"]
-    },
-    "AdminSupportProfile": {
-      "title": "AdminSupportProfile",
-      "description": "Configurable settings for the support desk",
-      "type": "object",
-      "properties": {
-        "profileName": { "type": "string", "description": "Helpdesk title" },
-        "adminDisplayName": { "type": "string", "description": "Officer display name" },
-        "photoURL": { "type": "string", "description": "Helpdesk avatar" },
-        "description": { "type": "string", "description": "Helpdesk description" },
-        "welcomeMessage": { "type": "string", "description": "Automated welcome greeting" },
-        "activeHours": { "type": "string", "description": "Operating schedule" }
-      },
-      "required": ["profileName"]
-    },
-    "AdminNotice": {
-      "title": "AdminNotice",
-      "description": "Public announcements and alerts for users",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Notice ID" },
-        "title": { "type": "string", "description": "Notice header" },
-        "content": { "type": "string", "description": "Notice body" },
-        "targetAudience": { "type": "string", "enum": ["all", "seekers", "owners"], "description": "Audience" },
-        "isUrgent": { "type": "boolean", "description": "High visibility flag" },
-        "createdAt": { "type": "string", "description": "ISO timestamp" }
-      },
-      "required": ["id", "title", "content", "createdAt"]
-    },
-    "UserNotification": {
-      "title": "UserNotification",
-      "description": "Notifications sent to individual users for approvals, rejections, and alerts",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Notification document ID" },
-        "userId": { "type": "string", "description": "Target recipient UID" },
-        "type": { "type": "string", "description": "Notification type" },
-        "title": { "type": "string", "description": "Notification title" },
-        "message": { "type": "string", "description": "Notification text content" },
-        "read": { "type": "boolean", "description": "Whether read by user" },
-        "createdAt": { "type": "string", "description": "ISO creation timestamp" }
-      },
-      "required": ["userId", "title", "message", "createdAt"]
-    },
-    "AdminNotification": {
-      "title": "AdminNotification",
-      "description": "Notifications sent to administrators for pending actions",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Notification ID" },
-        "type": { "type": "string", "description": "Notification type" },
-        "title": { "type": "string", "description": "Title" },
-        "message": { "type": "string", "description": "Message" },
-        "read": { "type": "boolean", "description": "Read flag" },
-        "createdAt": { "type": "string", "description": "ISO creation timestamp" }
-      },
-      "required": ["title", "message", "createdAt"]
-    },
-    "RoomFeature": {
-      "title": "RoomFeature",
-      "description": "Room facilities and custom feature builder fields configurable by admin",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "Feature ID" },
-        "name": { "type": "string", "description": "Feature title" },
-        "icon": { "type": "string", "description": "Lucide icon key" },
-        "category": { "type": "string", "description": "Category" },
-        "description": { "type": "string", "description": "Description" },
-        "order": { "type": "number", "description": "Display order" },
-        "isRequired": { "type": "boolean", "description": "Whether field input is mandatory" },
-        "isHidden": { "type": "boolean", "description": "Hidden flag" },
-        "isDisabled": { "type": "boolean", "description": "Disabled flag" },
-        "inputType": { "type": "string", "description": "Feature input type: checklist, single_select, text, number, price, price_unit, yes_no, time, date, image_upload" },
-        "options": { "type": "array", "description": "List of options for option-based features" }
-      },
-      "required": ["id", "name"]
-    }
-  },
-  "firestore": {
-    "/features/{featureId}": {
-      "schema": { "$ref": "#/entities/RoomFeature" },
-      "description": "Room amenities and facilities managed by admin"
-    },
-    "/users/{userId}": {
-      "schema": { "$ref": "#/entities/UserProfile" },
-      "description": "User profiles and account settings"
-    },
-    "/rooms/{roomId}": {
-      "schema": { "$ref": "#/entities/RoomListing" },
-      "description": "Room and flat listings in Janakpur"
-    },
-    "/chowks/{chowkId}": {
-      "schema": { "$ref": "#/entities/ChowkLocation" },
-      "description": "Major chowks and landmarks in Janakpur"
-    },
-    "/inquiries/{inquiryId}": {
-      "schema": { "$ref": "#/entities/InterestedInquiry" },
-      "description": "Seeker contact inquiries sent to room owners"
-    },
-    "/premiumRequests/{reqId}": {
-      "schema": { "$ref": "#/entities/PremiumRequest" },
-      "description": "Owner verification and premium badge requests"
-    },
-    "/savedRooms/{saveId}": {
-      "schema": { "$ref": "#/entities/SavedRoom" },
-      "description": "Saved listings for bookmarking"
-    },
-    "/conversations/{conversationId}": {
-      "schema": { "$ref": "#/entities/Conversation" },
-      "description": "Direct and support message conversations"
-    },
-    "/conversations/{conversationId}/messages/{messageId}": {
-      "schema": { "$ref": "#/entities/ChatMessage" },
-      "description": "Messages sent within a conversation"
-    },
-    "/settings/{settingId}": {
-      "schema": { "$ref": "#/entities/AdminSupportProfile" },
-      "description": "Application settings and support desk configurations"
-    },
-    "/notices/{noticeId}": {
-      "schema": { "$ref": "#/entities/AdminNotice" },
-      "description": "Platform-wide notices and broadcast alerts"
-    },
-    "/userNotifications/{notifId}": {
-      "schema": { "$ref": "#/entities/UserNotification" },
-      "description": "User notifications for approvals, rejections, and direct updates"
-    },
-    "/adminNotifications/{notifId}": {
-      "schema": { "$ref": "#/entities/AdminNotification" },
-      "description": "System and action notifications for admins"
+    "users": {
+      "fields": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string" },
+        "avatarUrl": { "type": "string" }
+      }
     }
   }
 }

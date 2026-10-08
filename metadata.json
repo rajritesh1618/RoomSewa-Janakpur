@@ -1,6 +1,6 @@
 {
   "name": "RoomSewa Janakpur",
-  "description": "A modern web application for finding and listing rooms, flats, and rentals across Janakpur, Nepal with verified chowks, owner listings, seeker connections, and admin controls.",
-  "requestFramePermissions": ["microphone"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "description": "Room & Flat Rental Platform in Janakpurdham, Nepal with verified chowks, owner listings, real-time Firestore updates, and native Android application support.",
+  "requestFrame": "true",
+  "prompt": ""
 }
