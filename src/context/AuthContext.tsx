@@ -19,7 +19,7 @@ interface AuthContextType {
   isOwner: boolean;
   isAdmin: boolean;
   login: (email: string, pass: string) => Promise<void>;
-  signup: (email: string, pass: string, name: string, role: 'seeker' | 'owner', phone?: string) => Promise<void>;
+  signup: (email: string, pass: string, name: string, role: 'seeker' | 'owner', phone: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
@@ -87,23 +87,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     pass: string, 
     name: string, 
     role: 'seeker' | 'owner', 
-    phone?: string
+    phone: string
   ) => {
+    if (!phone || !phone.trim()) {
+      throw new Error('Mobile number is mandatory for registration.');
+    }
+
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     
-    // Create UserProfile: phone is strictly OPTIONAL
+    // Create UserProfile: phone is mandatory
+    const cleanPhone = phone.trim();
     const newProfile: UserProfile = {
       uid: cred.user.uid,
       email: cred.user.email || email,
       name: name.trim(),
+      displayName: name.trim(),
+      phone: cleanPhone,
+      phoneNumber: cleanPhone,
       role: email === 'admin@roomsewa.com' ? 'admin' : role,
       createdAt: new Date().toISOString()
     };
-
-    // If user provided a phone number, save it; otherwise omit
-    if (phone && phone.trim().length > 0) {
-      newProfile.phone = phone.trim();
-    }
 
     await setDoc(doc(db, 'users', cred.user.uid), newProfile);
     try {

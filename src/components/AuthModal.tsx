@@ -50,13 +50,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setLoading(false);
           return;
         }
-        // Phone is strictly OPTIONAL - no validation error if empty!
+
+        const cleanPhone = phone.trim().replace(/[\s-]/g, '');
+        if (!cleanPhone) {
+          setError('Mobile number is required for registration.');
+          setLoading(false);
+          return;
+        }
+
+        // Validate 10-digit mobile number format (standard Nepal mobile: 98xxxxxxxx, 97xxxxxxxx, etc.)
+        if (!/^(?:\+?977)?[9][678]\d{8}$/.test(cleanPhone) && !/^\d{10}$/.test(cleanPhone)) {
+          setError('Please enter a valid 10-digit mobile number (e.g. 98XXXXXXXX)');
+          setLoading(false);
+          return;
+        }
+
         await signup(
           email.trim(), 
           password, 
           name.trim(), 
           role, 
-          phone.trim() ? phone.trim() : undefined
+          cleanPhone
         );
         setNotice('🎉 Account created! Verification email has been sent. You can now explore RoomSewa.');
         setTimeout(() => onClose(), 1500);
@@ -193,25 +207,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* OPTIONAL Mobile Number during signup */}
+          {/* Mandatory Mobile Number during signup */}
           {mode === 'signup' && (
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-stone-700">Mobile Number</label>
-                <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">Optional</span>
+                <label className="block text-xs font-bold text-stone-700">
+                  Mobile Number <span className="text-rose-600">*</span>
+                </label>
+                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                  Required
+                </span>
               </div>
               <div className="relative">
                 <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
                 <input
                   type="tel"
+                  required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="98XXXXXXXX (Optional)"
+                  placeholder="98XXXXXXXX (Required)"
                   className="w-full pl-9 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500"
                 />
               </div>
-              <p className="text-[11px] text-stone-400 mt-1">
-                You can add or update your phone number later in your profile anytime.
+              <p className="text-[11px] text-stone-500 mt-1">
+                Required for direct owner verification and tenant communication.
               </p>
             </div>
           )}

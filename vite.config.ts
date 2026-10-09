@@ -11,6 +11,9 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'prompt',
+        devOptions: {
+          enabled: false
+        },
         includeAssets: ['favicon.ico', 'assets/icons/*.png', 'manifest.json'],
         manifest: false, // Use our explicit public/manifest.json
         workbox: {

@@ -2,9 +2,86 @@
 <html lang="en">
   <head>
     <script>
+      // React refresh preamble fallback
       window.$RefreshReg$ = window.$RefreshReg$ || function() {};
       window.$RefreshSig$ = window.$RefreshSig$ || function() { return function(type) { return type; }; };
       window.__vite_plugin_react_preamble_installed__ = true;
+
+      // Handle sandbox environment where HMR WebSocket is disabled
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event && event.reason && (
+          (event.reason.message && event.reason.message.includes('WebSocket')) ||
+          (typeof event.reason === 'string' && event.reason.includes('WebSocket'))
+        )) {
+          event.preventDefault();
+        }
+      });
+
+      window.addEventListener('error', function(event) {
+        if (event && event.message && event.message.includes('WebSocket')) {
+          event.preventDefault();
+        }
+      });
+
+      (function() {
+        var NativeWebSocket = window.WebSocket;
+        if (!NativeWebSocket) return;
+
+        function ViteHmrSafeWebSocket(url, protocols) {
+          var isViteHmr = 
+            (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1) ||
+            protocols === 'vite-hmr' ||
+            (typeof url === 'string' && (url.indexOf('token=') !== -1 || url.indexOf('vite') !== -1));
+
+          if (isViteHmr) {
+            var listeners = { open: [], message: [], close: [], error: [] };
+            var mock = {
+              OPEN: 1,
+              CONNECTING: 0,
+              CLOSING: 2,
+              CLOSED: 3,
+              readyState: 1,
+              url: url,
+              protocol: 'vite-hmr',
+              extensions: '',
+              binaryType: 'blob',
+              bufferedAmount: 0,
+              onopen: null,
+              onmessage: null,
+              onclose: null,
+              onerror: null,
+              send: function() {},
+              close: function() {},
+              addEventListener: function(event, fn) {
+                if (!listeners[event]) listeners[event] = [];
+                listeners[event].push(fn);
+                if (event === 'open') {
+                  setTimeout(function() {
+                    var ev = { type: 'open' };
+                    if (mock.onopen) mock.onopen(ev);
+                    fn(ev);
+                  }, 0);
+                }
+              },
+              removeEventListener: function(event, fn) {
+                if (!listeners[event]) return;
+                listeners[event] = listeners[event].filter(function(cb) { return cb !== fn; });
+              },
+              dispatchEvent: function() { return true; }
+            };
+            return mock;
+          }
+
+          return new NativeWebSocket(url, protocols);
+        }
+
+        ViteHmrSafeWebSocket.CONNECTING = 0;
+        ViteHmrSafeWebSocket.OPEN = 1;
+        ViteHmrSafeWebSocket.CLOSING = 2;
+        ViteHmrSafeWebSocket.CLOSED = 3;
+        ViteHmrSafeWebSocket.prototype = NativeWebSocket.prototype;
+        window.WebSocket = ViteHmrSafeWebSocket;
+      })();
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />

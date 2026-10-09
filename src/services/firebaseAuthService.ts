@@ -197,7 +197,7 @@ export async function signupWithFirebaseAuth(params: {
   password: string;
   name: string;
   role: UserRole;
-  phone?: string;
+  phone: string;
 }): Promise<AuthSuccessResult> {
   const { email, password, name, role, phone } = params;
   const cleanEmail = email.trim().toLowerCase();
@@ -212,6 +212,10 @@ export async function signupWithFirebaseAuth(params: {
 
   if (!name.trim()) {
     throw new Error('Please enter your full name.');
+  }
+
+  if (!phone || !phone.trim()) {
+    throw new Error('Mobile number is mandatory for registration.');
   }
 
   // 1. Create Firebase Auth user

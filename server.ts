@@ -37,12 +37,37 @@ async function startServer() {
       server: { middlewareMode: true, hmr: false },
       appType: 'spa'
     });
+
+    // Intercept /@vite-plugin-pwa entry point in dev mode
+    app.get('/@vite-plugin-pwa/*', (req, res) => {
+      res.type('application/javascript').send('export default function registerDevSW() {}; export { registerDevSW };');
+    });
+
+    // Intercept /@vite/client to disable failing WebSocket connection in sandbox
+    app.get('/@vite/client', async (req, res, next) => {
+      try {
+        const mod = await vite.transformRequest('/@vite/client');
+        if (mod && mod.code) {
+          let code = mod.code;
+          code = code.replace(/await wsTransport\.connect\(handlers\);/g, '/* HMR disabled in sandbox */');
+          code = code.replace(/wsTransport\.connect\(handlers\)/g, 'Promise.resolve()');
+          code = code.replace(/ws\.send\(JSON\.stringify\(data\)\);/g, 'if (typeof ws !== "undefined" && ws && ws.send) { ws.send(JSON.stringify(data)); }');
+          res.type('application/javascript').send(code);
+          return;
+        }
+      } catch (e) {
+        console.warn('Fallback vite client transform:', e);
+      }
+      next();
+    });
+
     app.use(vite.middlewares);
     app.use('*', async (req, res, next) => {
       const url = req.originalUrl;
       try {
         let template = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf-8');
         template = await vite.transformIndexHtml(url, template);
+        template = template.replace(/<script id="vite-plugin-pwa:register-dev-sw"[\s\S]*?<\/script>/g, '');
         res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
       } catch (e) {
         next(e);
