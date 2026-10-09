@@ -10,17 +10,25 @@ import {
   orderBy 
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { RoomListing } from '../types';
+import { RoomListing, PremiumRequest } from '../types';
 
-interface RoomContextType {
+export interface RoomContextType {
   rooms: RoomListing[];
   loading: boolean;
-  addRoom: (roomData: Omit<RoomListing, 'id' | 'createdAt'>) => Promise<string>;
+  savedRoomIds: string[];
+  toggleSaveRoom: (roomId: string) => Promise<void>;
+  addRoom: (roomData: any) => Promise<string>;
   updateRoom: (id: string, updates: Partial<RoomListing>) => Promise<void>;
   deleteRoom: (id: string) => Promise<void>;
   toggleAvailability: (id: string, currentStatus: boolean) => Promise<void>;
   togglePremium: (id: string, currentStatus: boolean) => Promise<void>;
   approveRoom: (id: string) => Promise<void>;
+
+  // Premium requests
+  premiumRequests: PremiumRequest[];
+  approvePremiumRequest: (id: string, ...rest: any[]) => Promise<void>;
+  rejectPremiumRequest: (id: string, ...rest: any[]) => Promise<void>;
+  setUserPremiumStatus: (userId: string, status: boolean) => Promise<void>;
 }
 
 const RoomContext = createContext<RoomContextType | undefined>(undefined);
@@ -84,8 +92,9 @@ const initialSampleRooms: RoomListing[] = [
 export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [rooms, setRooms] = useState<RoomListing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savedRoomIds, setSavedRoomIds] = useState<string[]>([]);
+  const [premiumRequests, setPremiumRequests] = useState<PremiumRequest[]>([]);
 
-  // Firestore real-time listener: onSnapshot
   useEffect(() => {
     const roomsCol = collection(db, 'rooms');
     const roomsQuery = query(roomsCol, orderBy('createdAt', 'desc'));
@@ -98,7 +107,6 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         setRooms(list);
       } else {
-        // Seed default sample rooms in Firestore
         initialSampleRooms.forEach(async (r) => {
           await setDoc(doc(db, 'rooms', r.id), r).catch(console.error);
         });
@@ -107,7 +115,6 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }, (err) => {
       console.warn('Real-time rooms listener error:', err);
-      // Fallback
       setRooms(initialSampleRooms);
       setLoading(false);
     });
@@ -115,12 +122,19 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  const addRoom = async (roomData: Omit<RoomListing, 'id' | 'createdAt'>): Promise<string> => {
+  const toggleSaveRoom = async (roomId: string) => {
+    setSavedRoomIds(prev => 
+      prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+    );
+  };
+
+  const addRoom = async (roomData: any): Promise<string> => {
     const id = 'room-' + Date.now();
     const newRoom: RoomListing = {
       ...roomData,
       id,
-      approved: true, // Auto-approve or admin approved
+      available: true,
+      approved: true,
       createdAt: new Date().toISOString()
     };
     await setDoc(doc(db, 'rooms', id), newRoom);
@@ -144,19 +158,40 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const approveRoom = async (id: string) => {
-    await updateDoc(doc(db, 'rooms', id), { approved: true });
+    await updateDoc(doc(db, 'rooms', id), { approved: true, approvalStatus: 'approved' });
+  };
+
+  const approvePremiumRequest = async (id: string, ...rest: any[]) => {
+    setPremiumRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r));
+  };
+
+  const rejectPremiumRequest = async (id: string, ...rest: any[]) => {
+    setPremiumRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r));
+  };
+
+  const setUserPremiumStatus = async (userId: string, status: boolean) => {
+    const userRooms = rooms.filter(r => r.ownerId === userId);
+    for (const r of userRooms) {
+      await updateDoc(doc(db, 'rooms', r.id), { isPremium: status });
+    }
   };
 
   return (
     <RoomContext.Provider value={{
       rooms,
       loading,
+      savedRoomIds,
+      toggleSaveRoom,
       addRoom,
       updateRoom,
       deleteRoom,
       toggleAvailability,
       togglePremium,
-      approveRoom
+      approveRoom,
+      premiumRequests,
+      approvePremiumRequest,
+      rejectPremiumRequest,
+      setUserPremiumStatus
     }}>
       {children}
     </RoomContext.Provider>

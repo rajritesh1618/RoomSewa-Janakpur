@@ -18,4 +18,9 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+export const isSuperAdminEmail = (email?: string | null): boolean => {
+  return email?.toLowerCase() === 'admin@roomsewa.com';
+};
+
 export default app;

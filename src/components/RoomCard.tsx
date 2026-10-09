@@ -63,9 +63,9 @@ export const RoomCard: React.FC<RoomCardProps> = ({ room, onSelect, onOpenAuth, 
     }
     setStartingChat(true);
     try {
-      const convId = await startOrGetRoomConversation(room);
-      if (onOpenChat) {
-        onOpenChat(convId);
+      const conv = await startOrGetRoomConversation(room);
+      if (onOpenChat && conv) {
+        onOpenChat(typeof conv === 'string' ? conv : conv.id);
       }
     } catch (err: any) {
       alert(err.message || 'Could not open conversation with owner.');

@@ -85,9 +85,9 @@ export const AdminRoomEditModal: React.FC<AdminRoomEditModalProps> = ({
   const [ownerPhone, setOwnerPhone] = useState(room.ownerPhone || '');
   const [ownerWhatsapp, setOwnerWhatsapp] = useState(room.ownerWhatsapp || room.ownerPhone || '');
   const [ownerEmail, setOwnerEmail] = useState(room.ownerEmail || '');
-  const [status, setStatus] = useState<'available' | 'rented'>(room.status || 'available');
+  const [status, setStatus] = useState<'available' | 'rented'>((room.status as any) === 'rented' ? 'rented' : 'available');
   const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected'>(
-    room.approvalStatus || 'approved'
+    (room.approvalStatus as any) || 'approved'
   );
   const [isHidden, setIsHidden] = useState(Boolean(room.isHidden));
   const [isFeatured, setIsFeatured] = useState(Boolean(room.isFeatured));

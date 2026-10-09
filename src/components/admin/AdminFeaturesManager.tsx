@@ -338,7 +338,7 @@ export const AdminFeaturesManager: React.FC<AdminFeaturesManagerProps> = ({
     setName(feat.name);
     setDescription(feat.description || '');
     setIcon(feat.icon || 'Layers');
-    setCategory(feat.category || 'basic');
+    setCategory((feat.category as any) || 'basic');
     setOrder((feat.order ?? 1).toString());
     setIsRequired(Boolean(feat.isRequired));
     setIsHidden(Boolean(feat.isHidden));

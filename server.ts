@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
@@ -33,9 +34,20 @@ async function startServer() {
     // In dev mode, mount Vite middleware
     const { createServer } = await import('vite');
     const vite = await createServer({
-      server: { middlewareMode: true }
+      server: { middlewareMode: true, hmr: false },
+      appType: 'spa'
     });
     app.use(vite.middlewares);
+    app.use('*', async (req, res, next) => {
+      const url = req.originalUrl;
+      try {
+        let template = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e) {
+        next(e);
+      }
+    });
   } else {
     // In production, serve dist folder
     app.use(express.static(path.resolve(__dirname, 'dist')));
